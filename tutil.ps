@@ -1,0 +1,354 @@
+% Let's put here lots of typesetting-related postscript subroutines
+
+/currentfontinfo {    % - currentfontinfo fontname fontmatrix
+  currentfont /FontName get
+  dup findfont /FontMatrix get matrix invertmatrix
+  currentfont /FontMatrix get matrix concatmatrix
+} bind def
+
+/string2fss {    % convert a plain string to [font size string]
+  dup type /arraytype ne {[currentfontinfo 4 3 roll]} if
+} bind def
+
+% calculate bounding box of text
+/cbox {    % [font size string font size string ...] cbox llx lly ulx uly
+  string2fss
+  gsave matrix setmatrix 0 0 moveto
+  3 dict begin
+  /fss exch def
+  0 3 fss length 1 sub {
+    /i exch def
+    fss i get
+    fss i 1 add get selectfont
+    fss i 2 add get true charpath      % llx lly urx ury
+  } for
+  flattenpath pathbbox
+  end
+  grestore
+} bind def
+
+% find horizontal and vertical extent of text
+/cwidth {   % [font size string font size string ...] cwidth dx dy
+  cbox 3 2 roll sub 3 1 roll sub neg exch
+} bind def
+
+% find center of text
+/ccenter {   % [font size string font size string ...] ccenter centerx centery
+  cbox 3 2 roll add 2 div 3 1 roll add 2 div exch
+} bind def
+
+% show text
+/sshow {   % [font size string font size string ...] sshow -
+  3 dict begin
+  /fss exch string2fss def
+  [ currentpoint
+  0 3 fss length 1 sub {
+    /i exch def
+    fss i get
+    fss i 1 add get selectfont
+    fss i 2 add get show
+    currentpoint
+  } for ]
+  end
+  /.sshow. exch def    % array of currentpoints of each fss segment
+} bind def
+
+% clear text area
+/clr {    % [font size string font size string ...] clr -
+  gsave 1 setgray 2 setlinewidth 0 setlinejoin [] 0 setdash
+  cbox 2 index sub exch 3 index sub exch
+  currentpoint translate 4 copy rectfill rectstroke
+  grestore
+} bind def
+
+% clear then show text
+/clrshow {   % [font size string font size string ...] clrshow -
+  dup clr sshow
+} bind def
+
+% center text horizontally and vertically
+/ccentershow {   % [font size string font size string ...] ccentershow -
+  gsave dup ccenter neg exch neg exch rmoveto sshow grestore
+} bind def
+
+% clear then show text centered horizontally and vertically
+/clrcentershow {   % [font size string font size string ...] clrcentershow -
+  gsave dup ccenter neg exch neg exch rmoveto clrshow grestore
+} bind def
+
+% center text horizontally
+/chshow {   % [font size string font size string ...] chshow -
+  gsave dup ccenter pop neg 0 rmoveto sshow grestore
+} bind def
+
+% clear then show text centered horizontally
+/cchshow {  % [font size string font size string ...] cchshow -
+  gsave dup ccenter pop neg 0 rmoveto clrshow grestore
+} bind def
+
+% center text vertically
+/cvshow {   % [font size string ...] cvshow -
+  gsave dup ccenter exch pop neg 0 exch rmoveto sshow grestore
+} bind def
+
+% clear then show text centered vertically
+/ccvshow {  % [font size string font size string ...] ccvshow -
+  gsave dup ccenter exch pop neg 0 exch rmoveto clrshow grestore
+} bind def
+
+% center text vertically left of current point
+/lcvshow {    % [font size string ...] lcvshow -
+  gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto sshow grestore
+} bind def
+
+% clear then center text vertically left of current point
+/clcvshow {    % [font size string ...] lcvshow -
+  gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto clrshow grestore
+} bind def
+
+% show text left of current point
+/lshow {    % [font size string ...] lshow -
+  gsave dup cbox pop exch pop sub 0 rmoveto sshow grestore
+} bind def
+
+/leftshow /lshow load def
+/rightshow /sshow load def
+/centershow /chshow load def
+/xycentershow /ccentershow load def
+/ycenterleftshow /lcvshow load def
+/ycenterrightshow /cvshow load def
+
+/reencsmalldict 12 dict def
+/ReEncodeSmall  {    % basename newname newencondings ReEncodeSmall -
+  reencsmalldict begin
+  /newcodesandnames exch def
+  /newfontname exch def
+  /basefontname exch def
+  /basefontdict basefontname findfont def
+  /newfont basefontdict maxlength dict def
+  basefontdict {
+    exch dup /FID ne {
+      dup /Encoding eq {
+	exch dup length array copy
+	newfont 3 1 roll put
+      }
+      { exch newfont 3 1 roll put }
+      ifelse
+    }
+    { pop pop }
+    ifelse
+  } forall
+  newfont /FontName newfontname put
+  newcodesandnames aload pop
+  newcodesandnames length 2 idiv
+  { newfont /Encoding get 3 1 roll put}
+  repeat
+  newfontname newfont definefont pop
+  end
+} def
+
+/Symbol /SymbolX [60 /angleleft 62 /angleright] ReEncodeSmall
+
+/ReEncode {    % basename newname newencoding ReEncode -
+  reencsmalldict begin
+  /newencoding exch def
+  /newfontname exch def
+  /basefontname exch def
+  /basefontdict basefontname findfont def
+  /newfont basefontdict maxlength dict def
+  basefontdict {
+    exch dup /FID ne
+    { exch newfont 3 1 roll put }
+    { pop pop }
+    ifelse
+  } forall
+  newfont /FontName newfontname put
+  newfont /Encoding newencoding put
+  newfontname newfont definefont pop
+  end
+} bind def
+
+/Times-Roman /ISOTimes ISOLatin1Encoding ReEncode
+
+/integral {
+   1 index 3 index sub 256 div 0. eq
+   {pop pop pop 0}
+   {0
+    2 index 4 index sub 256 div dup 5 index add exch dup add 4 index
+    {2 index exec add} for dup add
+    2 index 4 index sub 256 div dup dup add dup 6 index add exch 5 index 4 -1
+    roll sub
+    {2 index exec add} for dup add
+    3 index 2 index exec add 2 index 2 index exec add
+    4 1 roll pop sub mul -768 div
+   }
+   ifelse
+} bind readonly def
+
+/180:pi 57.29577951308 def          % 180. pi div
+/pi:180 .0174532925199433 def			% pi 180. div
+
+/cadd {3 2 roll add 3 1 roll add exch} bind readonly def
+
+/csub {3 2 roll exch sub 3 1 roll sub exch} bind readonly def
+
+/cmul {2 copy 4 index mul exch 5 index mul exch sub 5 1 roll
+       4 3 roll mul 3 1 roll mul add} bind readonly def
+
+/cdiv {2 copy cabs
+       dup 5 1 roll div
+       exch 3 index div
+       3 2 roll 3 index div
+       5 3 roll div			% d/m c/m b/m a/m
+       2 copy 4 index mul exch 5 index mul add 5 1 roll
+       4 1 roll mul 3 1 roll mul sub
+} bind readonly def
+
+/cabs {abs exch abs 2 copy lt {exch} if      % |big| |small|
+       1 index dup 0 eq {pop pop} {div dup mul 1. add sqrt mul} ifelse
+} bind readonly def
+
+/csqrt {2 copy cabs dup 0. eq
+        {pop}
+        {%stack: x y cabs
+         3 2 roll dup 0. lt
+         {sub .5 mul sqrt dup 3 1 roll div .5 mul exch}
+         {add .5 mul sqrt 1 index 0. lt {neg} if dup 3 1 roll div .5 mul}
+         ifelse   % x negative or not
+        }
+        ifelse % zero or not
+} bind readonly def
+
+/cex {exch e exch exp exch 180:pi mul dup cos 2 index mul 3 1 roll sin mul
+} bind readonly def
+
+/cln {2 copy cabs ln 3 1 roll exch atan pi:180 mul} bind readonly def
+
+/cexp {4 2 roll cln cmul cex} bind readonly def
+
+/cdup {2 copy} bind readonly def
+/cexch {4 2 roll} bind readonly def
+/cneg {exch neg exch neg} bind readonly def
+/c.i {neg exch} bind readonly def
+/c.-i {exch neg} bind readonly def
+
+/csinh {cdup cex cexch cneg cex csub exch .5 mul exch .5 mul} bind readonly def
+/ccosh {cdup cex cexch cneg cex cadd exch .5 mul exch .5 mul} bind readonly def
+/ctanh {cdup cex cexch cneg cex 4 copy csub 6 2 roll cadd cdiv} bind readonly def
+
+% atanh x = 1/2 ln ((1 + x) / (1 - x))
+
+/catanh {cdup exch 1 add exch cexch exch 1 exch sub exch neg cdiv cln exch .5 mul exch .5 mul} bind readonly def
+
+% acosh x = ln (x +- sqrt (x^2 - 1))
+
+/cacosh {cdup cdup cmul exch 1 sub exch csqrt cadd cln} bind readonly def
+
+% asinh x = atanh(x/sqrt(1+x^2))
+
+/casinh {cdup cdup cmul exch 1 add exch csqrt cdiv catanh} bind readonly def
+
+
+/csin {cdup c.i cex cexch c.-i cex csub .5 mul exch -.5 mul} bind readonly def
+
+/ccos {cdup c.i cex cexch c.-i cex cadd exch .5 mul exch .5 mul}bind readonly def
+
+/ctan {cdup c.i cex cexch c.-i cex 4 copy csub 6 2 roll cadd cdiv c.-i}bind readonly def
+
+% atan x = -i/2 ln ((1 + ix) / (1 - ix))
+
+/catan {cdup neg 1 add exch cexch 1 add exch neg cdiv cln .5 mul exch -.5 mul}bind readonly def
+
+% asin x = -i ln (ix +- sqrt (1 - x^2))
+
+/casin {c.i cdup cdup cmul exch 1 add exch csqrt cadd cln c.-i} bind readonly def
+
+% acos x = -i ln (x +- sqrt (x^2 - 1))
+
+/cacos {cdup cdup cmul exch 1 sub exch csqrt cadd cln c.-i} bind readonly def
+
+/c=print {exch =print ( )print =print} bind readonly def
+/c= {exch =print ( )print =} bind readonly def
+
+
+% f is a one-parameter 2D vector function, and must be a procedure
+
+
+% x y unit x/sqrt(x^2+y^2) y/sqrt(x^2+y^2)
+
+/unit
+{ 2 copy cabs dup 0 eq
+  {pop}
+  {dup 4 -1 roll exch div 3 1 roll div}
+  ifelse
+} bind def
+
+
+% t f deriv dfx/dt dfy/dt
+
+/deriv
+{ 1 index .001953125 add 1 index exec 3 index .001953125 sub 3 index exec
+  exch 4 -1 roll exch sub 256 mul 3 1 roll sub 256 mul 4 2 roll pop pop
+} bind def
+
+
+% lo hi f arclength length
+
+/arclength
+{ [ exch //deriv aload pop //cabs aload pop] cvx integral} bind def
+
+
+% lo hi f arclength findarc t
+
+/findarc  % not currently a good algorithm!!
+{ 4 1 roll
+  10 { 3 copy arclength 
+       4 index exch div 2 index 4 index sub mul 3 index add 3 1 roll exch pop
+     } repeat 
+  pop 3 1 roll pop pop  
+} bind def
+
+/findnarc  % not currently a good algorithm!!
+{ 4 1 roll
+  10 { 3 copy arclength 
+       4 index exch div 3 index 3 index sub mul 2 index add
+       4 1 roll 3 2 roll pop
+     } repeat 
+  pop pop exch pop  
+} bind def
+
+
+% lo hi f string fitcurveshow -
+/fitcurveshow
+{ gsave
+  4 copy pop arclength
+  1 index stringwidth pop
+  div currentfont exch scalefont setfont
+  curveshow
+  grestore
+} bind def  
+
+
+% lo hi f string curveshow -
+/curveshow
+{ { ( ) dup 0 4 -1 roll put dup stringwidth pop .5 mul
+    5 copy pop pop 3 index findarc
+    6 -1 roll pop 5 1 roll
+    gsave
+    4 index 3 index 2 copy exec moveto 0 0 translate
+    deriv unit [ 3 1 roll dup neg 2 index 0 0 ] concat
+    dup neg 0 rmoveto exch show
+    4 copy findarc 5 -1 roll pop 4 1 roll pop
+    grestore
+  }
+  forall pop pop pop
+} bind def
+
+/cat {    % str1 str2 cat str1+str2
+  2 copy length exch length dup 4 1 roll add string dup 5 1 roll
+ dup 0 6 5 roll putinterval 3 1 roll putinterval
+} bind def
+
+/pi 3.141592653589793 def
+/pi_180 pi 180 div def
+/asin {dup dup mul 1 exch sub sqrt atan} def

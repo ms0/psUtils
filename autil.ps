@@ -1,0 +1,876 @@
+false echo
+% define a name and print out a message saying name defined
+
+/define {2 copy //def pop =print ( defined) = } bind readonly def
+/default {1 index where {pop pop pop} {define} ifelse} bind readonly def
+/undefine {    % key undefine -    (undefine from everywhere on dictstack)
+  { dup where {1 index undef} {pop exit} ifelse } loop
+} bind readonly def
+
+
+% define some exponential numbers and functions
+
+/real-precision 1 1 30 {2 1 index exp 1 add cvi 1 and 0 ne {pop} {exit} ifelse} for define
+
+/sgn {dup 0 ne {dup dup eq {0 gt {1}{-1} ifelse} if} if} bind define
+/e 2.718281828459045 define
+/ln2 .6931471805599453 define
+/log2 {dup ln //ln2 div dup sgn exch abs floor mul   % x roundtozero(log2?(x))
+       exch 2 2 index exp div ln //ln2 div add
+} bind readonly define
+/exp-1 {dup abs //ln2 le
+        {dup         9. div 1. add
+         1 index mul 8. div 1. add
+         1 index mul 7. div 1. add
+         1 index mul 6. div 1. add
+         1 index mul 5. div 1. add
+         1 index mul 4. div 1. add
+         1 index mul 3. div 1. add
+         1 index mul 2. div 1. add
+         mul}
+        {//e exch exp 1 sub}
+        ifelse} bind readonly define
+/ln1+ {dup 1. add dup ln 3 1 roll dup 3 1 roll 1. sub sub exch div add} bind define
+
+/Infinity {2 1000 exp} stopped {pop} if def
+/-Infinity Infinity neg def
+/NaN Infinity dup sub def
+
+/undefinedresultdict <<
+  /exp load { pop pop Infinity }
+>> def
+
+errordict /undefinedresult 2 copy get /default-undefinedresult exch def
+{ //undefinedresultdict exch 2 copy known
+  { get exec }
+  { exch pop default-undefinedresult }
+  ifelse
+} bind put
+
+/pi 3.141592653589793 define
+/asin {dup dup mul 1. exch sub sqrt atan} bind readonly define
+/acos {dup dup mul 1. exch sub sqrt exch atan} bind readonly define
+/tan {dup sin exch cos div} bind readonly define
+/ctn {dup cos exch sin div} bind readonly define
+/sec {1. exch cos div} bind readonly define
+/csc {1. exch sin div} bind readonly define
+/cbrt {dup 0. ne {dup abs .333333333333333333 exp 1 index 0. lt {neg} if
+       dup dup dup add 4 1 roll mul div add 3 div} if} bind readonly define
+      
+/sinh { dup abs //ln2 le    % use power series for better precision
+        { dup dup mul dup 72. div 1. add
+              1 index mul 42. div 1. add
+              1 index mul 20. div 1. add
+                      mul  6. div 1. add
+          mul }
+        { //e 1 index exp exch //e exch neg exp sub .5 mul }
+        ifelse} bind readonly define
+/cosh {//e 1 index exp exch e exch neg exp add .5 mul} bind readonly define
+/cosh-1 {dup abs //ln2 le    % use power series for better precision
+         { dup mul dup 56. div 1. add
+           1 index mul 30. div 1. add
+           1 index mul 12. div 1. add
+           mul 2. div }
+         {//e 1 index exp exch e exch neg exp add .5 mul 1. sub}
+         ifelse} bind readonly define
+/tanh {dup sinh exch cosh dup //Infinity lt {div} {pop sgn} ifelse} bind readonly define
+/asinh { dup dup mul dup 1. le
+         { 1. add sqrt div dup ln1+ exch neg ln1+ sub .5 mul }
+         { dup //Infinity lt
+           { 1. add sqrt 1 index abs add ln }    % s^2 finite
+           { pop dup abs ln //ln2 add }
+           ifelse exch 0. lt {neg} if }
+         ifelse } bind readonly define
+/acosh { dup 1. ge { dup dup mul dup //Infinity lt
+                     { 1. sub sqrt add ln}
+                     { pop ln //ln2 add }
+                     ifelse }
+                   {/acosh cvx errordict /rangecheck get exec}
+                   ifelse } bind readonly define
+/acosh1+ { dup 0. ge { dup dup 2. add mul dup //Infinity lt
+                      { sqrt add ln1+ }
+                      { pop ln1+ //ln2 add }
+                      ifelse }
+                   {/acosh1+ cvx errordict /rangecheck get exec}
+                   ifelse} bind readonly define
+/atanh { dup abs dup 1. lt
+         { pop dup ln1+ exch neg ln1+ sub .5 mul }
+         { 1. eq
+           { //Infinity mul }    % +-infinity
+           { /atanh cvx errordict /rangecheck get exec }    % error
+           ifelse }
+         ifelse} bind readonly define
+
+% convert to string so that different numbers print differently
+
+userdict /cvs known not {
+/cvs {      % num string
+  1 index type /realtype ne
+   {//cvs}
+   {exch (-1.23456789e-69)  % temp 15 character string
+    0 0 2 index 5 -1 roll     %stack: string 0 #chars substring num
+    dup dup ne
+     {pop (NaN) exch copy length add}
+     {
+      dup 0 lt
+       {neg  %replace number with absolute value
+        exch
+        dup (-) exch copy pop dup length 1 sub 1 exch getinterval exch % insert -
+        3 -1 roll 1 add 3 1 roll     %indicate output has one character
+       }
+      if
+      dup 0. eq
+       {pop (0.) exch copy length add}
+       {    %stack: string 0 #chars substring num     %num not zero
+        dup log floor 8 sub dup 38 gt
+         {pop pop (Infinity) exch copy length add}
+         {cvi exch
+          % have num on top of stack; split it into two pieces for conversion
+          dup ln //ln2 div .0001 add floor   % floor(log2), but might be too big
+          dup 128. ge {pop 127.} if 2. exch exp 2 copy lt {.5 mul} if
+          % have num hi-bit-of-num on top of stack [possibly denormalized!]
+          dup 3 1 roll sub      % now have hi-bit-of-num rest-of-num
+          2 index dup 0 lt
+           {
+            neg dup 32 gt {32 sub 3 1 roll 1e32 mul exch 1e32 mul exch 3 2 roll} if
+            10. exch exp 3 1 roll 2 index mul exch 2 index mul exch 3 2 roll pop
+           }
+           {10. exch exp 3 1 roll 2 index div exch 2 index div exch 3 2 roll pop}
+          ifelse
+          3 2 roll 8 add 3 1 roll
+          %stack: string 0 #chars substring exp hi lo % of frac*1e9
+          2. mul cvi exch 2. mul cvi add
+          % should be between 200 000 000 and 1 999 999 999
+          dup 199999999 lt {10 mul exch 1 sub exch} if
+          dup 1999999990 ge {10 idiv exch 1 add exch} if
+          dup 335544160 ge {10 idiv} if  % only 8 significant digits if >= 2^24
+          1 add -1 bitshift
+          (123456789) //cvs
+          %stack: string 0 #chars substring exp (8 or 9 significant digits)
+          % now eliminate trailing zeroes
+          dup length 1 sub -1 0
+          {2 copy get (0) 0 get ne {exit} {pop} ifelse} for
+          2 index dup 5 lt {2 copy lt {exch} if} if pop  % fixed pt
+          1 add 0 exch getinterval
+          %stack: string 0 #chars substring exp (x digits)
+          1 index abs 5 ge
+           {2 index 0 2 index 0 get put
+            dup length 1 sub 1 exch getinterval
+            4 2 roll exch 1 add exch dup length 1 sub 1 exch getinterval 4 2 roll
+            dup length 0 ne
+             {(.) 3 index copy pop     % insert .
+              4 2 roll exch 1 add exch dup length 1 sub 1 exch getinterval 4 2 roll
+              2 index copy length 4 2 roll %stack: ... length #chars substring
+              dup length 3 index sub 3 index exch getinterval 4 1 roll add 3 1 roll 
+             }
+             {pop}
+            ifelse
+            %stack: string 0 #chars substring exp
+            1 index 0 (e) 0 get put     % insert e
+            3 1 roll exch 1 add exch dup length 1 sub 1 exch getinterval 3 -1 roll
+            (-69) //cvs             % exponent
+            exch copy length add
+           }      % |exp| >= 5
+           {exch       %stack: string 0 #chars substring (x digits) exp
+            dup 0 ge
+             {1 add 2 copy 0 exch getinterval  % to be copied first
+              %stack: string 0 #chars substring (x digits) exp+1 (digs before .)
+              3 index copy length
+              4 -1 roll dup length 3 -1 roll dup 3 1 roll sub getinterval
+              %stack: string 0 #chars (x digits) exp+1 substring
+              dup (.) exch copy pop dup length 1 sub 1 exch getinterval 3 1 roll
+              %stack: string 0 #chars substring (x digits) exp
+              exch 2 copy length 1 index sub getinterval 3 -1 roll copy length
+              add add 1 add
+             }    % 0 <= exp < 5
+             {neg (.000) 0 3 -1 roll getinterval
+              %stack: ... #chars substring (x digits) (.0s)
+              2 index copy length
+              %stack: ... #chars substring (x digits) #addedchars
+              3 -1 roll dup length 2 index sub 2 index exch getinterval 3 1 roll
+              4 -1 roll add 3 1 roll
+              exch copy length add
+             }    % -5 < exp < 0
+            ifelse
+           }      % |exp| < 5
+          ifelse
+         }        % finite exp
+        ifelse
+       }          % non-zero
+      ifelse
+     }            % not NaN
+    ifelse
+    getinterval
+    exch copy     % copy into real string
+   }
+  ifelse
+} bind readonly define
+} if
+
+% define = to use above cvs
+
+/= {dup type /stringtype ne {=string cvs} if print (\n)print} bind readonly define
+
+/=print /= load dup length 0 exch 2 sub getinterval define
+
+% define == to give more info than the regular ==
+
+/== {dup type () begin exec end (\n)print}
+dup 2 17 dict dup begin
+   /integertype //=print def
+   /realtype //=print def
+   /booleantype {
+      dup xcheck {(+)} {(-)} ifelse dup
+      //=print exec exch //=print exec //=print exec
+   } bind readonly def
+   {dup xcheck {(+)} {(-)} ifelse dup
+    //=print exec exch type =string cvs
+    (type) search {3 1 roll pop pop} if //=print exec //=print exec
+   } bind readonly
+   dup /nulltype exch def
+   dup /marktype exch def
+   dup /savetype exch def
+   dup /dicttype exch def
+   dup /filetype exch def
+   dup /fonttype exch def
+   dup /conditiontype exch def
+   dup /gstatetype exch def
+   dup /locktype exch def
+   pop
+   /stringtype {
+      dup rcheck
+      {dup xcheck {(>) (<)} {(\)) (\()} ifelse
+       //=print exec exch //=print exec //=print exec
+      }
+      //nulltype
+      ifelse
+   } bind readonly def
+   /operatortype {
+      dup xcheck {(--) dup} {(-/)(/-)} ifelse
+      //=print exec exch //=print exec //=print exec
+   } bind readonly def
+   {dup rcheck
+    {dup xcheck {({)} {([)} ifelse //=print exec ( ) //=print exec
+     dup {dup type exec ( ) //=print exec} forall
+     xcheck {(})} {(])} ifelse //=print exec
+    }
+    //nulltype
+    ifelse
+   } bind readonly
+   dup /arraytype exch def
+   dup /packedarraytype exch def
+   pop
+   /nametype {dup xcheck not {(/) //=print exec} if //=print exec} bind readonly def
+end readonly put bind readonly define
+
+/==print /== load dup length 0 exch 2 sub getinterval define
+
+% define equal to return true for read- and execute- equivalent objects
+
+/equaldict 18 dict define
+equaldict begin
+
+/equal0 {
+   1 index type 1 index type eq
+   {1 index type exec} {pop pop false} ifelse} bind readonly def
+
+/nulltype {xcheck exch xcheck eq} bind readonly def
+/marktype /eq load def
+/savetype /eq load def
+/booleantype /eq load def
+/integertype /eq load def
+/realtype /eq load def
+/nametype {2 copy eq 3 1 roll xcheck exch xcheck eq and} bind readonly def
+/stringtype //nametype def
+/filetype //nametype def
+/operatortype //nametype def
+/fonttype /eq load def
+/locktype /eq load def
+/conditiontype /eq load def
+/gstatetype /eq load def
+/arraytype {
+   2 copy length exch length eq 2 index xcheck 2 index xcheck eq and
+   {0 1 2 index length 1 sub true 6 1 roll
+    {%stack: true array1 array2 index
+     2 index 1 index get 2 index 2 index get equal0 exch pop not
+     {false 4 1 roll pop exit} if
+    } for pop pop
+   }
+   {pop pop false}
+   ifelse
+} bind readonly def
+/packedarraytype //arraytype def
+/dicttype {
+   2 copy length exch length eq
+   {true 3 1 roll
+    {%stack: true firstdict key value
+     2 index 2 index known
+     {2 index 3 2 roll get equal0 not {pop pop false exch exit} if}
+     {pop pop pop false exch exit}
+     ifelse
+    } forall pop
+   }
+   {pop pop false}
+   ifelse
+} bind readonly def
+
+end
+
+equaldict readonly pop
+
+/equal {//equaldict begin equal0 end} bind readonly define
+
+
+% define n= (for 2 <= n <= 36) to be like =, but using radix n
+
+2 1 36
+{(===) 0 2 index 2 index cvs length 1 add getinterval
+ [/dup load /type load /integertype /eq load
+  [7 index (###) 3 string copy 0 2 index 2 index cvs length 1 add getinterval
+   /print load =string /cvrs load /print load
+  ] cvx
+  //=print
+  /ifelse load
+  (\n) /print load
+ ] cvx bind readonly define pop
+} for
+
+
+/printhexstring {
+  (<)print 0 exch
+  {dup -4 bitshift (0123456789abcdef)exch 1 getinterval print
+   15 and (0123456789abcdef)exch 1 getinterval print( )print
+   1 add dup 1 and 0 eq
+   {( )print dup 2 and 0 eq
+    {( )print dup 12 and 0 eq
+     {(\n )print} if
+    } if
+   } if
+  } forall pop(\b>)=
+} bind readonly define
+
+
+% define time to print out time taken by n executions of a procedure
+
+/time {bind /timer usertime def repeat usertime timer sub =} bind readonly define
+
+
+% define continued fraction routines:
+% cfout prints out a number's regular continued fraction expansion (up to 32 terms)
+% cfin reads the terms of a regular continued fraction and prints out the
+%  accumulating number as a rational and as a real;
+%  type "exit" to gracefully exit from typein
+% cf= prints out a number as a regular continued fraction, together with the
+%  resulting rational approximations
+
+/cfout {32
+   {dup floor dup cvi =print ( )print sub    % x - floor(x)
+    dup 0. eq {exit} if                      % done if zero
+    1. exch div                              % 1 / (x - floor(x))
+   } repeat pop (\n)print
+} bind readonly define
+
+/cfin {
+     0 1 1 0                        % p[-2] q[-2] p[-1] q[-1]
+     { (%statementedit)(r)file token pop exec   % read in a[n]
+                                    % p[n] = a[n]p[n-1] + p[n-2]
+                                    % q[n] = a[n]q[n-1] + q[n-2]
+       dup 3 index mul 6 -1 roll add exch 2 index mul 5 -1 roll add
+       (\t)print 1 index =print (/)print dup =print (=)print 2 copy div = flush
+     } loop
+} bind readonly define
+
+/cf= {
+   0 1 1 0
+   16 {4 index floor cvi dup =print (\t)print
+       dup 3 index mul 6 -1 roll add exch 2 index mul 5 -1 roll add
+       1 index =print (/)print dup =print (=)print 2 copy div =
+       5 -1 roll dup floor sub
+       dup 0. eq {exit} if
+       1. exch div 5 1 roll
+      }
+   repeat
+   pop pop pop pop pop
+} bind readonly define
+
+
+% define number theory routines:
+% prime? returns the primeness of its argument
+% Euclid runs the Euclidean algorithm on two numbers, returning their gcd
+%  and the coefficients of the two numbers giving the gcd
+% gcd just returns the gcd
+% factor factors a number, returning an array giving the factorization
+% unfactor reversed the operation of factor
+% totient returns the Euler totient function of its argument
+% ndivisors returns the number of divisors of its argument
+% sumofdivisors returns the sum of the divisors of its argument
+% printfactorization prints the factorization of its argument
+
+
+/prime? {
+   abs dup 1 and 0 eq
+   {2 eq}
+   {dup 1 le
+    {pop false}
+    {true exch 3
+     {2 copy dup mul lt {pop pop exit} if
+      2 copy mod 0 eq {pop pop not exit} if
+      2 add
+     } loop
+    }
+    ifelse
+   }
+   ifelse
+} bind readonly define
+
+/Euclid {
+   0 1 1 0 5 2 roll     % r[-2] u[-2] v[-2] r[-1] u[-1] v[-1]
+   {2 index 0 eq
+    {pop pop pop exit}
+    {6 3 roll
+     2 index 6 index idiv 4 1 roll
+     3 index 5 index mul sub 4 1 roll
+     2 index 6 index mul sub 4 1 roll
+     exch 6 index mul sub 3 1 roll
+    }
+    ifelse
+   } loop
+} bind readonly define
+
+/gcd {Euclid pop pop abs} bind readonly define
+
+/lcm {2 copy gcd dup 0 eq {pop} {idiv} ifelse mul} bind readonly define
+
+/factor {
+   [ exch dup 0 lt {-1 exch neg} if
+   dup 0 eq
+   {]}
+   { {dup 1 and 0 eq {2 exch 2 idiv} {exit} ifelse} loop  % factors of 2
+     3
+     {dup dup mul 2 index le
+      {2 copy mod 0 eq
+       {2 copy idiv 3 -1 roll pop 1 index}
+       {2 add}
+       ifelse
+      }
+      {pop dup 1 eq {pop} if ] exit}
+      ifelse
+     } loop
+   } ifelse
+} bind readonly define
+
+/unfactor {1 exch {mul} forall} bind readonly define
+
+/totient {
+   dup 0 ne
+   {1 exch           %stack: totient-so-far(phi) reamining-factor(n)
+    dup 1 and 0 eq   % first deal with factors of 2
+    {-1 bitshift
+     {dup 1 and 0 eq
+      {-1 bitshift exch 1 bitshift exch}
+      {exit}
+      ifelse
+     } loop
+    } if
+    abs 3            %stack: phi n trial-divisor(d)
+    {1 index 1 eq {pop pop exit} if
+     2 copy dup mul lt {pop 1 sub mul exit} if  % if n is prime
+     2 copy mod 0 eq
+     {dup 1 sub 4 -1 roll mul 3 1 roll    % multiply phi by d-1
+      {exch 1 index idiv exch             % divide n by d
+       2 copy mod 0 eq
+       {dup 4 -1 roll mul 3 1 roll}       % multiply phi by d
+       {exit}
+       ifelse
+      } loop
+     } if
+     2 add                                % next trial divisor
+    } loop
+   } if
+} bind readonly define
+
+/reducedtotient {
+   dup 0 ne
+   {1 exch           %stack: totient-so-far(phi) reamining-factor(n)
+    dup 1 and 0 eq   % first deal with factors of 2
+    {-1 bitshift
+     {dup 1 and 0 eq
+      {-1 bitshift exch 1 bitshift exch}
+      {exch dup 2 gt {-1 bitshift} if exch exit}
+      ifelse
+     } loop
+    } if
+    abs 3            %stack: phi n trial-divisor(d)
+    {1 index 1 eq {pop pop exit} if
+     2 copy dup mul lt {pop 1 sub lcm exit} if  % if n is prime
+     2 copy mod 0 eq
+     {dup 1 sub 4 -1 roll lcm 3 1 roll    % lcm phi with d-1
+      {exch 1 index idiv exch             % divide n by d
+       2 copy mod 0 eq
+       {dup 4 -1 roll mul 3 1 roll}       % multiply phi by d
+       {exit}
+       ifelse
+      } loop
+     } if
+     2 add                                % next trial divisor
+    } loop
+   } if
+} bind readonly define
+
+/powmod {    % b x m powmod b^x%m
+  4 dict begin
+  /m exch def
+  /x exch def
+  /b exch def
+  /y x {dup dup 1 sub and dup 0 ne {exch pop}{pop exit} ifelse} loop def
+  1
+  { y 0 eq {exit} if
+    dup mul m mod
+    x y and 0 ne {b mul m mod} if
+    /y y -1 bitshift store
+  } loop
+  end
+} bind readonly def
+
+/order {    % b m order order-of-b-mod-m 
+  2 copy gcd 1 eq {
+    1 1 1 3 index {
+      exch 3 index mul 2 index mod dup 1 eq {pop exit}{exch pop} ifelse
+    } for
+  } {0} ifelse
+  3 1 roll pop pop
+} bind readonly define
+
+/mobius {
+  dup 3 and 0 eq
+  {pop 0}         % divisible by 4
+  {dup 1 and 0 eq {2 idiv -1} {1} ifelse    % handle factor of 2
+   exch dup 0 lt {neg exch neg exch} if
+   3
+   {    %stack: mu-so-far n-left next-odd
+     dup dup mul 2 index le
+     { 2 copy mod 0 eq
+       { 2 copy idiv exch 3 -1 roll pop 2 copy mod 0 eq
+         {pop pop pop 0 exit} {3 -1 roll neg 3 1 roll} ifelse
+       } if
+     }
+     { pop 1 ne {neg} if exit }
+     ifelse
+     2 add    % bump next-odd
+   } loop
+  } ifelse
+} bind readonly define
+
+/ndivisors {
+   dup 0 ne
+   {1 1 3 2 roll
+    %stack: num-so-far(num) num-for-current-divisor(nd) remaining-factor(n)
+    {dup 1 and 0 eq     % first deal with factors of 2
+     {-1 bitshift exch 1 add exch}
+     {exit}
+     ifelse
+    } loop
+    3 1 roll mul 1 3 2 roll
+    abs 3      %stack: num nd n trial-divisor(d)
+    {1 index 1 eq {pop pop pop exit} if
+     2 copy dup mul lt {pop pop bitshift exit} if     % if n is prime
+     {2 copy mod 0 eq
+      {exch 1 index idiv exch       % divide n by d
+       3 2 roll 1 add 3 1 roll}     % add 1 to nd
+      {exit}
+      ifelse
+     } loop
+     4 2 roll mul 1 4 2 roll
+     2 add                          % next trial divisor
+    } loop
+   } if
+} bind readonly define
+
+/sumofdivisors {
+   dup 0 ne
+   {1 1 3 2 roll
+    %stack: sum-so-far(sum) sum-for-current-divisor(sd) remaining-factor(n)
+    {dup 1 and 0 eq     % first deal with factors of 2
+     {-1 bitshift exch 1 bitshift 1 add exch}
+     {exit}
+     ifelse
+    } loop
+    3 1 roll mul 1 3 2 roll
+    abs 3      %stack: sum sd n trial-divisor(d)
+    {1 index 1 eq {pop pop pop exit} if
+     2 copy dup mul lt {pop add mul exit} if     % if n is prime
+     {2 copy mod 0 eq
+      {exch 1 index idiv exch             % divide n by d
+       dup 4 3 roll mul 1 add 3 1 roll}   % multiply sum by d and add 1
+      {exit}
+      ifelse
+     } loop
+     4 2 roll mul 1 4 2 roll
+     2 add                          % next trial divisor
+    } loop
+   } if
+} bind readonly define
+
+/printfactorization {
+   factor 1 0 3 -1 roll
+   { %stack: last-factor last-multiplicity current-factor
+    dup 3 index eq
+    {pop 1 add}
+    {1 4 2 roll dup 0 eq
+     {pop pop}
+     {exch =print dup 1 le {pop} {(^)print =print} ifelse ( )print}
+     ifelse
+    }
+    ifelse
+   } forall
+   exch =print dup 1 le {pop} {(^)print =print} ifelse (\n)print
+} bind readonly define
+
+
+% printstring prints a string as a sequence of numbers representing the bytes
+
+/printstring {{=print( )print} forall (\n)print} bind define
+
+
+% printfile prints a file
+% copyfile copies a file (or the rest of an open file) to another file
+% printdir prints a list of files matching the string arg
+
+/printfile {
+   dup type /stringtype eq {(r)file} if
+   {dup ( ) readstring {print} {pop exit} ifelse} loop
+   pop (<EOF>\n) print} bind readonly define
+
+/copyfile {    % (input filename) [or open_input_file]
+               % (output filename)[or open_output_file]
+
+   dup type /stringtype eq {(w)file} if
+   exch dup type /stringtype eq {(r)file} if
+   {2 copy (                                                                )
+    readstring 3 1 roll writestring not {exit} if} loop
+   pop closefile} bind readonly define
+
+/printdir {    % (template)
+   {=} 255 string filenameforall
+} bind readonly define
+
+
+% printdict prints a dicitonary
+
+/printdict {
+   (<< )=
+   {exch ==print ( :== ) print ==} forall
+   (>>)=
+} bind readonly define
+
+
+% path procedures:
+% currentpath returns the current path as a user path
+% currentclip returns the current clipping path as a user path
+% printpath prints the current path
+% printprth prints the current path in polar coordinates
+% printclippath print the current clipping path
+% printgraphicstate prints the device-independent part of the gstate
+% path? returns true if the current path is non-empty
+% countpath returns the number of moves, lines, curvers, and closes in the
+%  current path
+% pathlength returns the length of the current path in user coordinates
+
+/currentpath {
+   [ pathbbox /setbbox cvx
+     {/moveto cvx}
+     {/lineto cvx}
+     {/curveto cvx}
+     {/closepath cvx}
+     pathforall
+   ] cvx
+} bind readonly define
+
+/currentclip {gsave clippath currentpath grestore} bind readonly define
+
+/printxy {exch =print (,)print =print} bind readonly def
+
+/printpath {
+   {(move )print printxy (\n)print}
+   {(line )print printxy (\n)print}
+   {(curve )print 6 4 roll printxy ( )print 4 2 roll printxy ( )print printxy (\n)print}
+   {(close\n)print}
+   pathforall
+} bind readonly define
+
+/printrth {
+   2 copy dup mul exch dup mul add sqrt dup =print
+   0 eq {pop pop} {(,)print exch atan =print} ifelse
+} bind readonly def
+
+/printprth {
+   {(move )print printrth (\n)print}
+   {(line )print printrth (\n)print}
+   {(curve )=print 6 4 roll printrth ( )print 4 2 roll printrth ( )print printrth (\n)print}
+   {(close\n)=}
+   pathforall
+} bind readonly define
+
+/path? {
+   false mark {cleartomark exit} dup dup dup pathforall mark ne {true} if
+} bind define
+
+/countpath {
+   0
+   {pop pop 1 add}
+   {pop pop 1 add}
+   {pop pop pop pop pop pop 1 add}
+   {1 add}
+   pathforall
+} bind readonly define
+
+/pathlength {
+   gsave flattenpath 0 0 0 0 0
+   {6 2 roll pop pop pop pop 2 copy}   % save last moveto coords
+   {2 copy 6 2 roll exch 4 -1 roll sub dup mul 3 1 roll sub dup mul add sqrt 6
+   -1 roll add 5 1 roll}
+   {pop pop pop pop pop pop}
+   {2 index sub dup mul exch 3 index sub dup mul add sqrt 4 -1 roll add 3 1
+   roll 2 copy}
+   pathforall pop pop pop pop grestore
+} bind readonly define
+
+
+/countclippath {gsave newpath clippath countpath grestore} bind readonly define
+/printclippath {gsave newpath clippath printpath grestore} bind readonly define
+/printgraphicstate {
+   matrix currentmatrix ==print path? {[currentpoint] ==print} if (\n)print 
+   currentcolorspace ==print [currentcolor]==print (\n)print
+   (clip:\n)print printclippath
+   currentfont dup /FontName 2 copy known {get =print}{pop pop} ifelse
+                   /FontMatrix get ==
+   currentlinewidth =print ( )print
+   currentlinecap =print ( )print
+   currentlinejoin =print ( )print
+   currentmiterlimit =print ( )print 
+   currentdash exch ==print =print currentstrokeadjust =
+   currenttransfer ==
+   (path:)= printpath
+} bind define
+
+% define sort routine taking array and interelement compare routine
+
+/sort {     % heapsort
+   % array compare sort -> sort
+   % array is writeable array of arbitrary objects, returned in sorted order
+   % compare is < comparison, returned array is sorted in increasing order
+   1 index length
+   dup -1 bitshift 1 sub -1 0
+   { % stack now has array, compare, n, j
+     3 index 1 index get         % push t = a[j] on stack
+     {
+       1 index 1 bitshift 1 add  % push k on stack
+       dup 4 index lt not {exit} if
+       dup 1 add 4 index lt
+       { 5 index 1 index get 6 index 2 index 1 add get 6 index exec
+         {1 add} if} if          % compare a[k] with a[k+1]
+       % array, compare, n, j, t, k
+       1 index 6 index 2 index get 6 index exec   % compare t with a[k]
+       { 5 index 3 index 1 index 3 index get put  % a[j] = a[k]
+         exch 3 -1 roll pop}                      % j = k, pop k
+       {exit}
+       ifelse
+     } loop
+     pop 4 index 3 1 roll put    % a[j] = t
+   } for
+   1 sub -1 1              % while (n-- > 1)
+   { 0                     % j
+     3 index 2 index get   % t = a[n]
+     4 index 3 index 1 index 0 get put    % a[n] = a[0]
+     {  1 index 1 bitshift 1 add          % push k on stack
+        dup 4 index lt not {exit} if      % exit if k not < n
+        dup 1 add 4 index lt
+        { 5 index 1 index get 6 index 2 index 1 add get 6 index exec
+          {1 add} if} if                  % compared a[k] with a[k+1]
+        1 index 6 index 2 index get 6 index exec   % compare t with a[k]
+        { 5 index 3 index 1 index 3 index get put  % a[j] = a[k]
+          exch 3 -1 roll pop}                      % j = k, pop k
+        { exit }
+        ifelse
+     } loop
+     pop 4 index 3 1 roll put             % a[j] = t
+     pop
+   } for
+   pop
+} bind readonly define
+
+
+% define definite integration routine returning integral from lo to hi of f
+
+/integral {  % lo hi f() ->
+   % integral from lo to hi of f, using Simpson's rule with 256 intervals
+   1 index 3 index sub 256 div 0. eq
+   {pop pop pop 0}
+   {0
+    2 index 4 index sub 256 div dup 5 index add exch dup add 4 index
+    {2 index exec add} for dup add
+    2 index 4 index sub 256 div dup dup add dup 6 index add exch 5 index 4 -1
+    roll sub
+    {2 index exec add} for dup add
+    3 index 2 index exec add 2 index 2 index exec add
+    4 1 roll pop sub mul -768 div
+   }
+   ifelse
+} bind readonly define
+
+
+% define routines to print out stacks
+
+/stack {count 1 sub 0 1 3 2 roll {index =} for} bind readonly def
+
+/pstack {count 1 sub 0 1 3 2 roll {index ==} for} bind readonly def
+
+/printexecstack {
+   countexecstack array execstack dup length 1 sub 0 exch getinterval reverse
+   {==} forall
+} bind readonly define
+
+/printdictstack {
+   countdictstack array dictstack reverse dup
+   {1 index finddict dup type /dicttype eq {printdict} {=} ifelse}
+   forall pop
+} bind readonly define
+
+/finddict {    % dict dictstack; returns name or dict
+   {
+    {2 index eq
+     {dup type /nametype eq {exch pop exit} {pop} ifelse}
+     {pop}
+     ifelse
+    } forall dup type /dicttype ne {exit} if
+   } forall
+} bind readonly define
+
+/reverse {    % reverse (in place) a string or array
+   dup length dup 1 sub exch 2 idiv 1 sub 0 1 3 2 roll
+   %stack: object length-1 0 1 length/2-1
+   {  %stack: object length-1 index
+    2 copy sub       %stack: o l-1 i l-1-i
+    3 index exch 2 copy get       %stack: o l-1 i o l-1-i o[l-1-i]
+    5 index 5 4 roll 2 copy get    %stack: o l-1 o l-1-i o[l-1-i] o i o[i]
+    4 3 roll exch 4 1 roll put put
+   }
+   for pop
+} bind readonly define
+
+/aindex {   % a x aindex i(first where a[i]==x) found?
+  exch dup length 3 2 roll 0 4 3 roll { 2 index eq {exit} {1 add} ifelse } forall 
+  dup 4 2 roll pop lt {true} {pop false} ifelse
+} bind readonly define
+
+/histogram {    % a histogram h    (get histogram of array a as dictionary)
+  dup length dict exch
+  { {2 copy get} stopped {pop pop 0} if 3 copy 1 add put pop pop} forall
+} bind readonly define
+
+/mode {    % a mode x    (find an element that repeats the most)
+  null 0 3 2 roll histogram {dup 3 index gt {4 2 roll} if pop pop} forall pop
+} bind readonly define
+
+
+true echo
