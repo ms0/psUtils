@@ -1,0 +1,65 @@
+% DFT of array of N=2^n elements, real array and imag array separate
+
+% a[0] ... a[N-1]
+
+% b[n] = sum(m=0:N) a[m] exp(-2 pi i mn/N )
+%      = sum(m=0:2:N) a[m] exp(-2 pi i mn/N)    E
+%       +sum(m=1:2:N) a[m] exp(-2 pi i mn/N)    O
+%      = sum(m=0:N/2) a[2m] exp(-2 pi i (2m/2) n / (N/2))
+%	+exp(-2 pi i n/N) sum(m=0:N/2) a[2m+1] exp(-2 pi i (2m/2) n / (N/2))
+% b[n+N/2] = E-O
+
+/cadd {3 2 roll add 3 1 roll add exch} bind readonly def
+
+/csub {3 2 roll exch sub 3 1 roll sub exch} bind readonly def
+
+/cmul {2 copy 4 index mul exch 5 index mul exch sub 5 1 roll
+       4 3 roll mul 3 1 roll mul add} bind readonly def
+
+/dft { % realarray imagarray forward realresult imagresult
+  % lengths of arrays assumed to be same power of 2
+  2 index length 1 le
+  { pop }
+  { 2 dict begin
+    0 1 dft0
+    /vN 2 index length sqrt def
+    [ exch {vN div} forall ] exch [ exch {vN div} forall ] exch
+    end
+  } ifelse
+} bind readonly def
+
+/dft0 { % realarray imagarray forward offset step dft realresult imagresult
+  16 dict begin
+  /d exch def
+  /o exch def
+  /f exch def
+  /I exch def
+  /R exch def
+  /N R length d idiv def
+  N 2 eq
+  { [ R o get R o d add get 2 copy add 3 1 roll sub ]
+    [ I o get I o d add get 2 copy add 3 1 roll sub ] }
+  { /hN N 2 idiv def
+    R I f o d 2 mul dft0 /IE exch def /RE exch def
+    R I f o d add d 2 mul dft0 /IO exch def /RO exch def
+    /R N array store /I N array store
+    0 1 hN 1 sub {
+      /n exch def
+      RE n get IE n get RO n get IO n get
+      n 360 mul N div dup cos exch sin f {neg} if 
+      cmul
+      4 copy cadd I n 3 2 roll put R n 3 2 roll put
+      csub I n hN add 3 2 roll put R n hN add 3 2 roll put
+    } for
+    R I
+  }
+  ifelse end
+} bind readonly def
+
+/aabs { % realarray imagarray aabs absolute-value-array
+  2 dict begin
+  /I exch def
+  /R exch def
+  [ 0 1 R length 1 sub {dup R exch get dup mul I 3 2 roll get dup mul add sqrt} for ]
+  end
+} bind readonly def
