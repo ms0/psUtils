@@ -1,0 +1,710 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%                DIRECTIONS FOR USE
+%
+%  For demo: /execORpop /exec load def (plot.ps)run
+%
+%  (1) Decide on 2-D or 3-D plot.
+%  (2) Decide on relevant range of actual coordinates.
+%  (3) Create main dictionary:
+%      Define /MapAll to be the mapping from actual coordinates (axis system)
+%        to problem space. (See DefaultMapAll and Default3DMapAll.)
+%      Define /View to be the mapping from problem space
+%        to PostScript coordinates. (See DefaultView and Default3DView.)
+%      Define /Axes to be array of axis dictionaries:
+%        Define /Map to map axis coordinate to problem space.
+%        Define /For to span axis coordinate range, use increment small enough
+%          to adequately approximate curved axis with straight segments.
+%        Define /Tick to give number of intervals in next larger interval.
+%          First element of array is number of intervals in largest interval.
+%          Last element of array is number of increments in smallest interval.
+%        Define /TickLength to give length of ticks ending intervals.
+%        Define /TickOffset, if not starting at first tick.
+%        Define /LogBase, if log scale, to be base of log.
+%  (5) Put main dictionary on dictionary stack.
+%  (6) Call plotaxes.
+%  (7) To plot a function as a 2-D plot, lo inc hi f() plotfunction, where
+%        f takes one argument and returns one value, so points are x, f(x).
+%      To plot a function parametrically, lo inc hi p() parametricplot, where
+%        p takes one argument and returns two values, so p() are plotted.
+%      To plot a 3-D function parametrically, lo inc hi p() parametricplot,
+%        where p takes one argument and returns three values,
+%        so p() are plotted. To give 3-D cues, points are plotted as small
+%        rings of fixed size, with their axes tangent to the curve.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+/execORpop /pop load default
+
+/Default3DView    % perspective with z axis towards viewer
+{144 exch sub 3 1 roll
+ 2 {36 sub 2 index div 144 mul 36 add exch} repeat
+ 3 2 roll pop
+} bind
+define
+
+/DefaultView {2 {72 mul exch} repeat} bind define
+
+/Default3DMapAll {3 {72 mul 3 1 roll} repeat} bind define
+/DefaultMapAll {2 {72 mul exch} repeat} bind define
+
+
+/ISOHelvetica /Helvetica findfont
+dup length dict begin {def} forall
+/Encoding ISOLatin1Encoding def
+currentdict dup /FID undef end definefont pop
+
+/DefaultFont /ISOHelvetica findfont 5 scalefont def
+
+/plotfunction % lo inc hi f()
+{
+   newpath
+   4 1 roll { dup 2 index exec MapAll View path? {lineto} {moveto} ifelse } for pop
+   stroke
+} bind define
+
+/parametricplot   % lo inc hi f()
+{
+   newpath
+   4 1 roll { 1 index exec MapAll View path? {lineto} {moveto} ifelse } for pop
+   stroke
+} bind define
+
+
+/3Dparametricplot   % r lo inc hi f()
+{
+   save 6 1 roll
+   /tangent 3 array def
+   /normal 3 array def
+   /centerpos 3 array def
+   /center [0 0] def
+   0 setlinewidth
+   newpath 0 0 7 6 roll 0 360 arc closepath
+   2 index .5 mul 5 2 roll
+   {
+     %stack: f inc t
+     dup 3 index exec MapAll     % center point
+     4 3 roll 4 index 2 copy add 3 1 roll sub
+     6 index exec MapAll 4 3 roll 8 index exec MapAll
+     3 {4 3 roll sub 3 1 roll} repeat
+     %stack: r f inc f(t) f(t+inc/2)-f(t-inc/2)
+     3 {2 index dup mul} repeat add add sqrt
+     4 1 roll 3 {3 index div 3 1 roll} repeat 4 3 roll pop
+     % stack: r f inc f(t) n
+     2 {2 index dup mul} repeat add dup 0 eq
+     { % n = +-k
+       pop pop pop pop 1 0 0 0 1 0  
+     }
+     {
+       sqrt 4 copy exch pop div neg 3 1 roll exch div 0
+       1 index neg 4 index mul 3 index 6 5 roll mul
+       7 5 roll 6 index mul exch 5 index mul exch sub
+     }
+     ifelse
+     tangent astore pop normal astore pop centerpos astore pop
+     % draw circle centered at f(t) and perpendicular to n
+     gsave
+     % transform current path to viewspace, then stroke
+     true
+     {2 index {3 2 roll not 3 1 roll newpath} if viewlabel moveto}
+     {viewlabel lineto}
+     {3 {viewlabel 6 2 roll} repeat curveto}
+     {closepath}
+     pathforall
+     pop stroke
+     grestore
+   } for
+   pop pop
+   restore
+} bind define
+
+
+% Dictionary:
+%   TitleFont -font-
+%   Title     (string for title)
+%   TitlePosition [x y]  % in user space
+%   3D        true (optional--default is false)
+%   MapAll    {map from axis system to rectangular problem space}  %optional
+%   View  {map from 2 or 3 dimensional problem space to user coordinate system}
+%   Axes [dictionaries]          % dimension dictionaries as follows
+%       LabelFont  -font-        % in problem space coordinates!
+%       LabelOrientation         % for left edge, center, or right edge:
+%               +1 right edge nearest to axis
+%               -1 left edge nearest to axis
+%                0 bottom (center) nearest to axis
+%                2 top (center) nearest to axis
+%       LabelReference % point in problem space determining label halfplane
+%       LabelCurvature   true  % to honor curvature; default is false
+%       LabelThresh% tick level above which labels are not generated
+%       LabelProc  % given axis value and increment, produce path to fill
+%       LineWidth  % of axis in user coords
+%       GridWidth  [entry for each tick level] % in user coords; 0->no grid
+%                  (null or not present if no grid)
+%       Map        {proc mapping axis coordinate to problem space}
+%       For        [start increment end] axis coordinate
+%                  (for logs, increment is only starting increment; goes up
+%                   by factor of LogBase at level-0 ticks)
+%       LogBase    1 for linear, else 2 for base 2, 10 for base 10, etc.
+%                  (for logs, repeat is by given factor larger)
+%       TickStyle  0 for centered, - for away from labels, + for toward labels
+%       TickWidth  [entry for each tick level]     % in user coords
+%       TickLength [entry for each tick level]     % in problem space coords
+%       Tick       [#intervals-at-level-0 #intervals-at-level-1 ...]
+%         example  [2 5 2 1] for labeling top level, and ticking halfway,
+%                                with 4 ticks between each, and halfway ticks
+%       TickOffset [a b c d] of starting point (normally all 0);
+%                  counts down mod Tick array
+%   ticks are always drawn perpendicular to axis (in problem space)
+%   labels are printed away from center of curvature
+%   for curved axes, last Tick entry large enough to track curve
+
+%   Note: If we have two vectors u = ai+bj+ck and v = di+ej+fk, then
+%         a vector perpendicular to u in the v halfplane is (u x v) x u =
+%         [(bb + cc) d - a (be + cf)]i +
+%         [(cc + aa) e - b (cf + ad)]j +
+%         [(aa + bb) f - c (ad + be)]k
+%   For c = f = 0, this reduces to
+%         -b (ae - bd) i + a (ae - bd) j
+
+
+% Default label generator (suitable for base 10 labels):
+% Compute the increment between labels
+
+/DefaultLabelProc    % args: parameter-value parameter-increment
+{Tick dup length LabelThresh dup 3 1 roll sub getinterval {mul} forall
+ %stack: parameter-value increment-to-next-label
+ dup log dup floor sub 10 exch exp dup 9.9 gt {1 exch pop} if
+ dup round 2 copy sub abs .1 ge {pop 10 mul round} {pop} ifelse
+ %stack: param increment mantissa-of-increment
+ div log round cvi   % least significant digit
+ LabelFont setfont
+ dup 0 ge 1 index 4 le and
+ { pop round cvi =string cvs true charpath }
+ { 10 1 index exp 3 2 roll exch div round cvi
+   dup 0 eq
+   { pop pop (0) true charpath }
+   { =string cvs
+     1 index 0 lt 2 index 2 index length add -4 ge and
+     {
+       dup length 2 index add dup 0 gt
+       {
+         2 copy 0 exch getinterval true charpath
+         (.) true charpath
+         1 index length 1 index sub getinterval
+       }
+       {
+         (.) true charpath
+         neg {(0) true charpath} repeat
+       }
+       ifelse
+       true charpath pop
+     }
+     { dup 0 1 getinterval true charpath
+       dup length 1 gt
+       { (.) true charpath
+         dup 1 1 index length 1 sub getinterval true charpath
+       }
+       if
+       ( x 10) true charpath
+       currentpoint pop pathbbox exch pop add exch pop .5 mul moveto
+       currentfont .5 scalefont setfont
+       length 1 sub add =string cvs true charpath
+     }
+     ifelse
+   }
+   ifelse
+ }
+ ifelse
+} bind def
+
+
+/getnormal   % x0 x1 xr getnormal -> n OK    % x0 x1 xr n are 2- or 3- vectors
+{ 
+  3D
+  { 3 {6 index sub 9 1 roll} repeat
+    3 {3 index sub 9 1 roll} repeat
+    pop pop pop
+    2 {4 index dup mul} repeat add 3 index mul
+    2 {5 index 3 index mul} repeat add 7 index mul sub 7 1 roll
+    5 index dup mul 4 index dup mul add 2 index mul
+    6 index 4 index mul 5 index 3 index mul add 6 index mul sub 7 1 roll
+    2 {5 index dup mul} repeat add mul
+    2 {5 index 3 index mul} repeat add 4 index mul sub 6 1 roll
+    5 {pop} repeat
+    3 {2 index dup mul} repeat add add
+    dup 0 eq {pop false}
+             {sqrt 4 1 roll 3 {3 index div 3 1 roll} repeat 4 3 roll pop true}
+    ifelse
+  }
+  { 2 {4 index sub 6 1 roll} repeat
+    2 {2 index sub 4 1 roll} repeat
+    pop pop
+    2 copy neg exch 6 2 roll 4 1 roll mul 3 1 roll mul sub
+    dup 2 {3 1 roll mul} repeat exch
+    2 copy dup mul exch dup mul add
+    dup 0 eq {pop false} {sqrt dup 2 {3 1 roll div} repeat exch true} ifelse
+  }
+  ifelse
+} bind def
+
+
+/viewlabel    % transform label point to viewspace
+{
+  exch center 0 get sub exch center 1 get sub    % subtract center point
+  /y exch def /x exch def
+  0 1 3D {2}{1} ifelse
+  { tangent 1 index get x mul
+    normal 2 index get y mul add
+    centerpos 3 2 roll get add
+  }
+  for View
+} bind def
+
+
+/plotaxis
+{ save
+  LineWidth setlinewidth 1 setlinejoin 1 setlinecap    % set up stroking
+
+  % create LabelThresh if not present
+  currentdict /LabelThresh known not {/LabelThresh 0 def} if
+
+  % create LabelProc if not present
+  currentdict /LabelProc known not {/LabelProc //DefaultLabelProc def} if
+
+  % create LogBase if not present
+  currentdict /LogBase known
+  { LogBase 1 lt {/LogBase 1 def} if } { /LogBase 1 def } ifelse
+
+  % create TickOffset if not present
+  currentdict /TickOffset known not
+  { /TickOffset [ Tick length {0} repeat ] def } if
+
+  % create LabelCurvature if not present
+  currentdict /LabelCurvature known not {/LabelCurvature false def} if
+
+  % create LabelOrientation if not present
+  currentdict /LabelOrientation known not {/LabelOrientation 0 def} if
+
+  For 0 get dup Map View moveto   % go to first point
+  {
+    % for loop is simulated so we can handle Logbase != 1
+    For 2 get
+    For 1 get 0 lt {1 index gt} {1 index lt} ifelse {pop exit} if
+
+    % draw segment to current point on axis
+    dup Map View 2 copy lineto stroke moveto     % line to next point
+
+    % decrement TickOffset
+    -1 TickOffset length 1 sub -1 0
+    { TickOffset 1 index 2 copy get dup 0 ne
+      {1 sub put exch pop exit} {pop Tick 1 index get 1 sub put pop} ifelse
+    } for
+    1 add    % tick level to set
+
+    dup TickOffset length lt
+    {  
+       dup LabelThresh le TickLength 2 index get 0 ne or
+       {
+         gsave
+         % stroke tick
+         TickWidth 1 index get setlinewidth
+
+         1 index % axis point
+         For 1 get 2 copy sub Map 3D {5}{4} ifelse -2 roll add Map
+         LabelCurvature
+         { 3D {6 copy 13}{4 copy 9} ifelse index Map getnormal
+           { 3D {9 3 roll 6} {6 2 roll 4} ifelse {pop} repeat }
+           { 3D {3}{2} ifelse {pop} repeat LabelReference aload pop getnormal pop}
+           ifelse
+         }
+         { LabelReference aload pop getnormal pop }
+         ifelse
+         3D
+         { 3 copy TickLength 7 index get
+           3 {exch 1 index mul 4 1 roll} repeat pop
+           gsave
+           7 index Map
+           { { 3 {4 3 roll sub 3 1 roll} repeat View lineto stroke }
+             { 6 copy
+               3 {4 3 roll .5 mul sub 3 1 roll} repeat View moveto
+               3 {4 3 roll .5 mul add 3 1 roll} repeat View lineto
+               stroke
+             }
+             { 3 {4 3 roll add 3 1 roll} repeat View lineto stroke }
+           }
+           TickStyle 1 add get exec
+           grestore
+           3
+         }
+         { 2 copy TickLength 5 index get dup 2 {3 1 roll mul} repeat exch
+           gsave
+           5 index Map
+           { { 2 {3 2 roll sub exch} repeat View lineto stroke }
+             { 4 copy
+               2 {3 2 roll .5 mul sub exch} repeat View moveto
+               2 {3 2 roll .5 mul add exch} repeat View lineto
+               stroke
+             }
+             { 2 {3 2 roll add exch} repeat View lineto stroke }
+           }
+           TickStyle 1 add get exec
+           grestore
+           2
+         }
+         ifelse
+
+         index dup
+         0 eq {For 1 2 copy get LogBase mul put} if   % update For increment
+         LabelThresh le
+         {
+            % set label
+            gsave
+            3D {4}{3} ifelse index    % axispoint
+            For 1 get LabelProc
+
+            % get unit tangent
+            3D
+            { 4 index For 1 get .5 mul 2 copy sub Map 5 3 roll add Map
+              3 {4 3 roll sub 3 1 roll} repeat
+              3 {2 index dup mul} repeat add add sqrt
+              4 1 roll 3 {3 index div 3 1 roll} repeat 4 3 roll pop
+              6 3 roll
+            }
+            { 3 index For 1 get .5 mul 2 copy sub Map 4 2 roll add Map
+              2 {3 2 roll sub exch} repeat
+              2 {1 index dup mul} repeat add sqrt
+              3 1 roll 2 {2 index div exch} repeat 3 2 roll pop
+              4 2 roll
+            }
+            ifelse
+
+            % stack: axispoint ticklevel unit-tangent unit-normal
+
+            % find center position of bbox based on LabelOrientation and
+            % TickStyle
+            pathbbox            % get delta to center along normal direction
+            LabelOrientation 1 and 0 eq
+            { exch pop sub exch pop -.75 mul}               % horizontal label
+            { 3 2 roll sub .25 mul 3 1 roll sub .5 mul sub }  % vertical label
+            ifelse
+
+            TickStyle 0 ge
+            {
+              TickLength 3D {8}{6} ifelse index get
+              TickStyle 0 eq {.5 mul} if
+              add
+            }
+            if
+            %stack: axispoint ticklevel unit-tangent unit-normal d-to-label
+            3D
+            { 4 copy pop 3 {3 index mul 3 1 roll} repeat 4 3 roll pop
+              10 index Map 3 {4 3 roll add 3 1 roll} repeat
+            }
+            { 3 copy pop 2 {2 index mul exch} repeat 3 2 roll pop
+              7 index Map 2 {3 2 roll add exch} repeat
+            }
+            ifelse
+            %stack: axispoint ticklevel unit-tangent unit-normal vect-to-label
+
+            % if View of tangent, normal around center is left-handed,
+            % flip tangent
+            3D
+            {
+              3 {2 index 9 index sub} repeat View
+              3 {4 index 11 index add} repeat View
+              3 2 roll sub 3 1 roll exch sub exch    % View(tangent)
+              3 {4 index 8 index sub} repeat View
+              3 {6 index 10 index add} repeat View
+              3 2 roll sub 3 1 roll exch sub exch    % View(normal)
+              4 3 roll mul 3 1 roll mul sub 0 lt
+              {9 6 roll 3 {neg 9 1 roll} repeat} if
+            }
+            {
+              2 {1 index 6 index sub} repeat View
+              2 {3 index 8 index add} repeat View
+              3 2 roll sub 3 1 roll exch sub exch    % View(tangent)
+              2 {3 index 6 index sub} repeat View
+              2 {5 index 8 index add} repeat View
+              3 2 roll sub 3 1 roll exch sub exch    % View(normal)
+              4 3 roll mul 3 1 roll mul sub 0 lt
+              {6 4 roll 2 {neg 6 1 roll} repeat} if
+            }
+            ifelse
+
+            % rotate vectors based on LabelOrientation
+            3D
+            { {
+                {9 3 roll 3 {6 5 roll neg} repeat 9 6 roll}
+                {}
+                {9 3 roll 3 {neg 6 1 roll} repeat 9 6 roll}
+                {9 3 roll 6 {neg 6 1 roll} repeat 9 6 roll}
+              }
+            }
+            { {
+                {6 2 roll 2 {4 3 roll neg} repeat 6 4 roll}
+                {}
+                {6 2 roll 2 {neg 4 1 roll} repeat 6 4 roll}
+                {6 2 roll 4 {neg 4 1 roll} repeat 6 4 roll}
+              }
+            }
+            ifelse
+            LabelOrientation 1 add get exec
+
+            pathbbox 3 2 roll add .5 mul 3 1 roll add .5 mul exch % center
+            2 array astore /center exch def
+            3D {3}{2} ifelse array astore /centerpos exch def
+            3D {3}{2} ifelse array astore /normal exch def
+            3D {3}{2} ifelse array astore /tangent exch def
+
+            % transform current path to viewspace, then fill
+            true
+            {2 index {3 2 roll not 3 1 roll newpath} if viewlabel moveto}
+            {viewlabel lineto}
+            {3 {viewlabel 6 2 roll} repeat curveto}
+            {closepath}
+            pathforall
+            pop fill
+            grestore
+            pop    % tick level
+         }
+         { 3D {4}{3} ifelse {pop} repeat }
+         ifelse
+         grestore
+      }
+      { pop }
+      ifelse
+    }
+    { pop }    % tick level
+    ifelse
+
+    For 1 get add    % increment axis point
+  }
+  loop
+  restore
+} bind define
+
+/plotaxes
+{ currentdict /3D known not {/3D false def} if
+  Axes { begin plotaxis end} forall
+} bind define
+
+
+{
+
+% Test data follows
+clippath pathbbox newpath
+3 2 roll sub .5 mul 3 1 roll sub -.5 mul exch translate 3 3 scale
+0 setlinewidth
+
+/H0 DefaultFont def
+
+
+/x-axis
+<<
+   /LabelFont H0
+   /LabelOrientation 2
+   /LabelReference [-1 -1 0]
+   /LineWidth 0
+   /Map {0 0 MapAll} bind
+   /For [0 .01 1]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [3 2 1]
+   /Tick [2 5 1]
+>> def
+
+/y-axis
+<<
+   /LabelFont H0
+   /LabelOrientation 1
+   /LabelReference [-1 -1 0]
+   /LineWidth 0
+   /Map {0 exch 0 MapAll} bind
+   /For [0 .01 1]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [3 2 1]
+   /Tick [2 5 1]
+>> def
+
+/z-axis
+<<
+   /LabelFont H0
+   /LabelOrientation 2
+   /LabelReference [0 -1 -1]
+   /LineWidth 0
+   /Map {0 exch 0 exch MapAll} bind
+   /For [0 .01 1]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [3 2 1]
+   /Tick [2 5 1]
+>> def
+
+/angle -20 def
+<<
+  /3D        true
+  /View      {3 2 roll dup angle cos mul 4 1 roll angle sin mul exch
+              dup angle sin mul 5 -1 roll add 4 1 roll angle cos mul exch sub
+              Default3DView} bind
+  /Axes      [x-axis y-axis z-axis]
+  /MapAll    /Default3DMapAll load
+>>
+begin
+plotaxes
+1 -1 .001 1
+{dup 1440 mul dup cos .25 mul .5 add exch sin .25 mul .5 add} bind
+3Dparametricplot
+
+
+
+showpage
+
+
+
+100 300 translate 5 5 scale
+/H2 /ISOHelvetica findfont 4 scalefont def
+/H6 /ISOHelvetica findfont 6 scalefont def
+/H10 /ISOHelvetica findfont 10 scalefont def
+
+/x-axis
+<<
+   /LabelFont H6
+   /LabelOrientation 2
+   /LabelReference [-1 -1]
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {0} bind
+   /For [0 1 80]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [4 3 2 1]
+   /Tick [2 5 2 1]
+>> def
+
+/y-axis
+<<
+   /LabelFont H6
+   /LabelOrientation 1
+   /LabelReference [-1 -1]
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {0 exch} bind
+   /For [0 1 80]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [4 3 2 1]
+   /Tick [2 5 2 1]
+>> def
+
+/th-axis
+<<
+   /LabelFont H6
+   /LabelOrientation -1
+   /LabelReference [0 0]
+   /LabelCurvature true
+   /LabelThresh 1
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {dup cos 80 mul exch sin 80 mul} bind
+   /For [-179.9 1 180]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [3 2 1 .5]
+   /Tick [6 3 5 1]
+>> def
+
+/sin-axis
+<<
+   /LabelFont H6
+   /LabelOrientation 1
+   /LabelReference [0 0]
+   /LabelCurvature true
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {dup 4 div 20 sub exch sin 20 mul} bind
+   /For [0 1 360]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [3 2 1 .5]
+   /Tick [6 3 5 1]
+>> def
+
+/log-axis
+<<
+   /LabelFont H2
+   /LabelOrientation 2
+   /LabelReference [-1 -1]
+   /LabelThresh 0
+   /LineWidth 0
+   /LogBase 10
+   /Map {log 4 add 20 mul 90} bind
+   /For [.00001 .0000001 1]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [4 3 2 1]
+   /Tick [9 2 5 1]
+>> def
+
+
+
+<<
+  /Title     (Test Plot)
+  /TitlePosition [18 17 mul 18 22 mul]
+  /TitleFont H10
+  /View      {}
+  /Axes      [x-axis y-axis th-axis sin-axis log-axis]
+>> begin
+plotaxes
+
+
+
+showpage
+
+
+36 36 translate 2 2 scale
+
+/x-axis
+<<
+   /LabelFont DefaultFont
+   /LabelOrientation 2
+   /LabelReference [-1 -1]
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {0 MapAll} bind
+   /For [0 1 128]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [4 3 2 1]
+   /Tick [2 2 2 1]
+>> def
+
+/y-axis
+<<
+   /LabelFont DefaultFont
+   /LabelOrientation 1
+   /LabelReference [-1 -1]
+   /LineWidth 0
+%  /GridWidth [0 0 0 0]
+   /Map {0 exch MapAll} bind
+   /For [0 1 255]
+   /TickStyle -1
+   /TickWidth [0 0 0 0]
+   /TickLength [4 3 2 1]
+   /Tick [2 2 2 1]
+>> def
+
+<<
+  /Title     (Test Plot)
+  /TitlePosition [18 17 mul 18 22 mul]
+  /TitleFont DefaultFont
+  /View      {}
+  /MapAll    {exch 2 mul exch} bind
+  /Axes      [x-axis y-axis]
+>>
+begin
+plotaxes
+%showpage
+
+
+} execORpop
