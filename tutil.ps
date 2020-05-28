@@ -96,6 +96,16 @@
   gsave dup ccenter exch pop neg 0 exch rmoveto clrshow grestore
 } bind def
 
+% center text vertically right of current point
+/rcvshow {    % [font size string ...] rcvshow -
+  gsave dup cbox 3 2 roll add -2 div 3 1 roll pop neg exch rmoveto sshow grestore
+} bind def
+
+% clear then center text vertically right of current point
+/crcvshow {    % [font size string ...] crcvshow -
+  gsave dup cbox 3 2 roll add -2 div 3 1 roll pop neg exch rmoveto clrshow grestore
+} bind def
+
 % center text vertically left of current point
 /lcvshow {    % [font size string ...] lcvshow -
   gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto sshow grestore
@@ -106,17 +116,32 @@
   gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto clrshow grestore
 } bind def
 
+% show text right of current point
+/rshow {    % [font size string ...] rshow -
+  gsave dup cbox pop pop pop neg 0 rmoveto sshow grestore
+} bind def
+
+% clear then show text right of current point
+/crshow {    % [font size string ...] crshow -
+  gsave dup cbox pop pop pop neg 0 rmoveto clrshow grestore
+} bind def
+
 % show text left of current point
 /lshow {    % [font size string ...] lshow -
   gsave dup cbox pop exch pop sub 0 rmoveto sshow grestore
 } bind def
 
+% clear then show text left of current point
+/clshow {    % [font size string ...] clshow -
+  gsave dup cbox pop exch pop sub 0 rmoveto clrshow grestore
+} bind def
+
 /leftshow /lshow load def
-/rightshow /sshow load def
+/rightshow /rshow load def
 /centershow /chshow load def
 /xycentershow /ccentershow load def
 /ycenterleftshow /lcvshow load def
-/ycenterrightshow /cvshow load def
+/ycenterrightshow /rcvshow load def
 
 /reencsmalldict 12 dict def
 /ReEncodeSmall  {    % basename newname newencondings ReEncodeSmall -
