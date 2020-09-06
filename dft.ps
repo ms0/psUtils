@@ -16,7 +16,7 @@
 /cmul {2 copy 4 index mul exch 5 index mul exch sub 5 1 roll
        4 3 roll mul 3 1 roll mul add} bind readonly def
 
-/dft { % realarray imagarray forward realresult imagresult
+/dft { % realarray imagarray forward dft realresult imagresult
   % lengths of arrays assumed to be same power of 2
   2 index length 1 le
   { pop }
@@ -61,5 +61,50 @@
   /I exch def
   /R exch def
   [ 0 1 R length 1 sub {dup R exch get dup mul I 3 2 roll get dup mul add sqrt} for ]
+  end
+} bind readonly def
+
+/bitrev { % n N bitrev n-with-its-N-bits-reversed
+  0 exch {1 bitshift 1 index 1 and or exch -1 bitshift exch} repeat exch pop
+} bind readonly def
+
+% in-place dft (no new arrays are allocated)
+/fft { % realarray imagarray forward fft realarray imagarray
+  % lengths of arrays assumed to be same power of 2
+  16 dict begin
+  /f exch def
+  2 copy    % return values
+  /I exch def
+  /R exch def
+  /N R length def
+  /b N ln 2 ln div round cvi def
+  1 1 N 2 sub {
+    dup b bitrev 2 copy lt {
+      /i exch def /j exch def
+      R i R j get R j R i get put put
+      I i I j get I j I i get put put
+    } {pop pop} ifelse
+  } for
+  0 1 b 1 sub {
+    /n 1 3 2 roll bitshift def
+    0 1 n 1 sub {
+      dup
+      f {-180}{180} ifelse mul n div dup cos /c exch def sin /s exch def
+      n 1 bitshift N 1 sub {
+	/k exch def
+	/k+n k n add def
+	R k get I k get 2 copy
+	R k+n get I k+n get c s cmul 2 copy 6 2 roll
+	cadd I k 3 2 roll put R k 3 2 roll put
+	csub I k+n 3 2 roll put R k+n 3 2 roll put
+      } for
+    } for
+  } for
+  /vN N sqrt def
+  0 1 N 1 sub {
+    /i exch def
+    R i 2 copy get vN div put
+    I i 2 copy get vN div put
+  } for
   end
 } bind readonly def
