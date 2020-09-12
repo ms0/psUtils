@@ -236,6 +236,7 @@ dup 2 17 dict dup begin
    dup /conditiontype exch def
    dup /gstatetype exch def
    dup /locktype exch def
+   dup /devicetype exch def
    pop
    /stringtype {
       dup rcheck
@@ -288,6 +289,7 @@ equaldict begin
 /locktype /eq load def
 /conditiontype /eq load def
 /gstatetype /eq load def
+/devicetype /eq load def
 /arraytype {
    2 copy length exch length eq 2 index xcheck 2 index xcheck eq and
    {0 1 2 index length 1 sub true 6 1 roll
@@ -691,10 +693,10 @@ equaldict readonly pop
 /printxy {exch =print (,)print =print} bind readonly def
 
 /printpath {
-   {(move )print printxy (\n)print}
-   {(line )print printxy (\n)print}
-   {(curve )print 6 4 roll printxy ( )print 4 2 roll printxy ( )print printxy (\n)print}
-   {(close\n)print}
+   {( move )print printxy (\n)print}
+   {( line )print printxy (\n)print}
+   {( curve )print 6 4 roll printxy ( )print 4 2 roll printxy ( )print printxy (\n)print}
+   {( close\n)print}
    pathforall
 } bind readonly define
 
@@ -739,19 +741,25 @@ equaldict readonly pop
 /countclippath {gsave newpath clippath countpath grestore} bind readonly define
 /printclippath {gsave newpath clippath printpath grestore} bind readonly define
 /printgraphicstate {
-   matrix currentmatrix ==print path? {[currentpoint] ==print} if (\n)print 
-   currentcolorspace ==print [currentcolor]==print (\n)print
+   (CTM: )=print matrix currentmatrix ==print path?
+   {(  currentpoint: )print[currentpoint] ==print} if (\n)print 
+   (color: )print currentcolorspace ==print [currentcolor]==print (\n)print
    (clip:\n)print printclippath
-   currentfont dup /FontName 2 copy known {get =print}{pop pop} ifelse
-                   /FontMatrix get ==
-   currentlinewidth =print ( )print
-   currentlinecap =print ( )print
-   currentlinejoin =print ( )print
-   currentmiterlimit =print ( )print 
-   currentdash exch ==print =print currentstrokeadjust =
-   currenttransfer ==
+   (font: )print currentfont dup /FontName 2 copy known
+     {get =print}{pop pop} ifelse /FontMatrix get ==
+   (linewidth: )print currentlinewidth =print
+   ( linecap: )print currentlinecap =print
+   ( linejoin: )print currentlinejoin =
+   (miterlimit: )print currentmiterlimit =print
+   ( dash: )print currentdash exch ==print =print
+   ( strokeadjust: )print currentstrokeadjust =
+   (transfer: )print currenttransfer ==
    (path:)= printpath
-} bind define
+} bind readonly define
+
+% print a gstate
+/printgstate {gsave setgstate printgraphicstate grestore} bind readonly define
+
 
 % define sort routine taking array and interelement compare routine
 
