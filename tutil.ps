@@ -4,11 +4,34 @@
   currentfont /FontName get
   dup findfont /FontMatrix get matrix invertmatrix
   currentfont /FontMatrix get matrix concatmatrix
-} bind def
+} bind readonly def
 
 /string2fss {    % convert a plain string to [font size string]
   dup type /arraytype ne {[currentfontinfo 4 3 roll]} if
-} bind def
+} bind readonly def
+
+/2matrix {  % size-or-matrix 2matrix matrix
+  dup type /arraytype ne {[exch 0 0 2 index 0 0]} if
+} bind readonly def
+
+/superscript {    % size-or-matrix superscript matrix
+  2matrix [2 3 div 0 0 2 index 0 .5] exch matrix concatmatrix
+} bind readonly def
+
+/subscript {    % size-or-matrix subscript matrix
+  2matrix [2 3 div 0 0 2 index 0 -1 6 div] exch matrix concatmatrix
+} bind readonly def
+
+/tan {dup sin exch cos div} bind readonly def
+
+/oblique {    % size-or-matrix angle oblique matrix
+  tan exch 2matrix dup dup 3 get exch 0 get div 3 2 roll mul
+  [1 0 4 3 roll 1 1 index -.25 mul 0] exch matrix concatmatrix
+} bind readonly def
+
+/expand {    % size-or-matrix factor expand matrix
+  exch 2matrix exch [exch 0 0 1 0 0] matrix concatmatrix
+} bind readonly def
 
 % calculate bounding box of text
 /cbox {    % [font size string font size string ...] cbox llx lly ulx uly
@@ -25,17 +48,17 @@
   flattenpath pathbbox
   end
   grestore
-} bind def
+} bind readonly def
 
 % find horizontal and vertical extent of text
 /cwidth {   % [font size string font size string ...] cwidth dx dy
   cbox 3 2 roll sub 3 1 roll sub neg exch
-} bind def
+} bind readonly def
 
 % find center of text
 /ccenter {   % [font size string font size string ...] ccenter centerx centery
   cbox 3 2 roll add 2 div 3 1 roll add 2 div exch
-} bind def
+} bind readonly def
 
 % show text
 /sshow {   % [font size string font size string ...] sshow -
@@ -51,7 +74,7 @@
   } for ]
   end
   /.sshow. exch def    % array of currentpoints of each fss segment
-} bind def
+} bind readonly def
 
 % clear text area
 /clr {    % [font size string font size string ...] clr -
@@ -59,82 +82,82 @@
   cbox 2 index sub exch 3 index sub exch
   currentpoint translate 4 copy rectfill rectstroke
   grestore
-} bind def
+} bind readonly def
 
 % clear then show text
 /clrshow {   % [font size string font size string ...] clrshow -
   dup clr sshow
-} bind def
+} bind readonly def
 
 % center text horizontally and vertically
 /ccentershow {   % [font size string font size string ...] ccentershow -
   gsave dup ccenter neg exch neg exch rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then show text centered horizontally and vertically
 /clrcentershow {   % [font size string font size string ...] clrcentershow -
   gsave dup ccenter neg exch neg exch rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % center text horizontally
 /chshow {   % [font size string font size string ...] chshow -
   gsave dup ccenter pop neg 0 rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then show text centered horizontally
 /cchshow {  % [font size string font size string ...] cchshow -
   gsave dup ccenter pop neg 0 rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % center text vertically
 /cvshow {   % [font size string ...] cvshow -
   gsave dup ccenter exch pop neg 0 exch rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then show text centered vertically
 /ccvshow {  % [font size string font size string ...] ccvshow -
   gsave dup ccenter exch pop neg 0 exch rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % center text vertically right of current point
 /rcvshow {    % [font size string ...] rcvshow -
   gsave dup cbox 3 2 roll add -2 div 3 1 roll pop neg exch rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then center text vertically right of current point
 /crcvshow {    % [font size string ...] crcvshow -
   gsave dup cbox 3 2 roll add -2 div 3 1 roll pop neg exch rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % center text vertically left of current point
 /lcvshow {    % [font size string ...] lcvshow -
   gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then center text vertically left of current point
 /clcvshow {    % [font size string ...] lcvshow -
   gsave dup cbox 3 2 roll add -2 div 3 1 roll exch pop neg exch rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % show text right of current point
 /rshow {    % [font size string ...] rshow -
   gsave dup cbox pop pop pop neg 0 rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then show text right of current point
 /crshow {    % [font size string ...] crshow -
   gsave dup cbox pop pop pop neg 0 rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 % show text left of current point
 /lshow {    % [font size string ...] lshow -
   gsave dup cbox pop exch pop sub 0 rmoveto sshow grestore
-} bind def
+} bind readonly def
 
 % clear then show text left of current point
 /clshow {    % [font size string ...] clshow -
   gsave dup cbox pop exch pop sub 0 rmoveto clrshow grestore
-} bind def
+} bind readonly def
 
 /leftshow /lshow load def
 /rightshow /rshow load def
@@ -144,7 +167,7 @@
 /ycenterrightshow /rcvshow load def
 
 /reencsmalldict 12 dict def
-/ReEncodeSmall  {    % basename newname newencondings ReEncodeSmall -
+/ReEncodeSmall {    % basename newname newencondings ReEncodeSmall -
   reencsmalldict begin
   /newcodesandnames exch def
   /newfontname exch def
@@ -170,7 +193,7 @@
   repeat
   newfontname newfont definefont pop
   end
-} def
+} bind readonly def
 
 /Symbol /SymbolX [60 /angleleft 62 /angleright] ReEncodeSmall
 
@@ -191,7 +214,7 @@
   newfont /Encoding newencoding put
   newfontname newfont definefont pop
   end
-} bind def
+} bind readonly def
 
 /Times-Roman /ISOTimes ISOLatin1Encoding ReEncode
 
