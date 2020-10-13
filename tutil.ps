@@ -166,6 +166,38 @@
 /ycenterleftshow /lcvshow load def
 /ycenterrightshow /rcvshow load def
 
+% in sshow et al, we can use a triple with an empty string to tag a position
+% this results in a repeated point in .sshow.
+
+% given an array of points, pick out the ones that are repeated
+/gettaggedpoints {    % array gettaggedpoints subarray-of-tagged-points
+  2 dict begin /a exch def
+  [ 0 2 a length 4 sub {
+    a exch 4 getinterval aload pop
+    2 index eq exch 3 index eq and not {pop pop} if
+  } for ] end
+} bind readonly def
+
+% add an overbar, underbar, or strikethrough to text
+/overbar {    % startpoint endpoint vertical-displacement thickness overbar -
+  gsave
+  setlinewidth 2 setlinecap [] 0 setdash
+  3 1 roll pop 3 index sub 4 1 roll add moveto 0 rlineto stroke
+  grestore
+} bind readonly def
+
+/rootbar {    % startpoint endpoint pointsize rootbar -
+  dup .875 mul exch 24 div overbar
+} bind readonly def
+
+% example usage:
+% /ps 10 def 100 100 moveto
+% [/Symbol ps (\326) /Symbol ps ()
+%  /Times-Roman ps (2) /Symbol ps ()
+%  /Symbol ps (/2 = \326) /Symbol ps ()
+%  /Times-Roman ps (1/2) /Symbol ps ()] sshow
+% .sshow. gettaggedpoints aload length 4 idiv {ps rootbar} repeat
+
 /reencsmalldict 12 dict def
 /ReEncodeSmall {    % basename newname newencondings ReEncodeSmall -
   reencsmalldict begin
