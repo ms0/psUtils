@@ -22,6 +22,10 @@
   2matrix [2 3 div 0 0 2 index 0 -1 6 div] exch matrix concatmatrix
 } bind readonly def
 
+/raise {    % size-or-matrix factor raise matrix
+  exch 2matrix dup 3 get 3 2 roll mul [1 0 0 1 0 7 6 roll] matrix concatmatrix 
+} bind readonly def
+
 /tan {dup sin exch cos div} bind readonly def
 
 /oblique {    % size-or-matrix angle oblique matrix
@@ -36,14 +40,15 @@
 % calculate bounding box of text
 /cbox {    % [font size string font size string ...] cbox llx lly ulx uly
   string2fss
-  gsave matrix setmatrix 0 0 moveto
+  gsave nulldevice 0 0 moveto
   3 dict begin
   /fss exch def
   0 3 fss length 1 sub {
     /i exch def
-    fss i get
-    fss i 1 add get selectfont
-    fss i 2 add get true charpath      % llx lly urx ury
+    fss i get dup null eq
+    { pop fss i 1 add get fss i 2 add get rmoveto }
+    { fss i 1 add get selectfont fss i 2 add get true charpath }
+    ifelse
   } for
   flattenpath pathbbox
   end
@@ -67,10 +72,10 @@
   [ currentpoint
   0 3 fss length 1 sub {
     /i exch def
-    fss i get
-    fss i 1 add get selectfont
-    fss i 2 add get show
-    currentpoint
+    fss i get dup null eq
+    { pop fss i 1 add get fss i 2 add get rmoveto }
+    { fss i 1 add get selectfont fss i 2 add get show }
+    ifelse currentpoint
   } for ]
   end
   /.sshow. exch def    % array of currentpoints of each fss segment
@@ -424,10 +429,31 @@
   forall pop pop pop
 } bind def
 
-/cat {    % str1 str2 cat str1+str2
-  2 copy length exch length dup 4 1 roll add string dup 5 1 roll
- dup 0 6 5 roll putinterval 3 1 roll putinterval
-} bind def
+/catdict
+<< /dicttype /copy load
+   /stringtype {
+     2 copy length exch length dup 4 1 roll add string
+     dup 5 1 roll 3 1 roll putinterval 1 index copy pop
+   } bind readonly
+   /arraytype {
+     2 copy length exch length dup 4 1 roll add array
+     dup 5 1 roll 3 1 roll putinterval 1 index copy pop
+   } bind readonly
+   /packedarraytype {
+     2 copy length exch length dup 4 1 roll add array
+     dup 5 1 roll 3 1 roll putinterval 1 index copy pop
+     aload length packedarray
+   } bind readonly
+>> readonly def
+
+/catlit {    % op1 op2 cat op1-concatenated-with-op2
+  2 copy type exch type ne {stop} if
+  //catdict 2 index type get exec
+} bind readonly def
+
+/cat {    % op1 op2 cat op1-concatenated-with-op2
+  2 copy xcheck exch xcheck and {catlit cvx} {catlit} ifelse
+} bind readonly def
 
 /pi 3.141592653589793 def
 /pi_180 pi 180 div def
@@ -435,3 +461,213 @@
 /asin {dup dup mul 1. exch sub sqrt atan} bind readonly def
 /acos {dup dup mul 1. exch sub sqrt exch atan} bind readonly def
 
+2 dict begin
+/m 1{{2 mul}loop}bind stopped pop pop def
+/d m def
+{{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped clear
+/maxreal m /-maxreal m neg end def def
+/minreal 1. {dup 2 div dup 0 ne {exch pop} {pop exit} ifelse}bind loop def
+/-minreal minreal neg def
+
+/min where {pop} {/min {2 copy gt {exch} if pop} bind readonly def} ifelse
+/max where {pop} {/max {2 copy lt {exch} if pop} bind readonly def} ifelse
+
+% given a font-size-string array, and a width, break into width-sized chunks
+% given a chunk, right align, left align, justify, or center
+% moveto right margin [for ra], left margin [for la or j], or center [for c]
+
+% linefeed: specify vertical displacement
+
+/tryshow {gsave nulldevice 0 0 moveto sshow grestore} bind readonly def
+
+/removeleadingspaces {    % fss removleadingspaces fss
+  { {dup 2 get ( ) eq
+      {dup length 3 sub 3 exch getinterval} {exit} ifelse
+    } loop
+  } stopped {pop} if
+} bind readonly def
+
+/removetrailingspaces {    % fss removetrailingspaces fss
+  { {dup dup length 1 sub get ( ) eq
+      {dup length 3 sub 0 exch getinterval} {exit} ifelse
+    } loop
+  } stopped {pop} if
+} bind readonly def  
+
+/breakfss {    % [font size string ...] [maxwidths] breakfss [[f s s][f s s]...]
+  % break [f s s ...] into consecutive pieces, each with width <= maxwidth
+  % (if maxwidths is empty, [[f s s ...]] is returned)
+  % when maxwidths runs out, its last element is reused
+  % if the last maxwidth is being reused, and the result is an empty piece,
+  %  the remainder of the original fss is returned
+  % a break can only occur at a space, which must be a separate f s ( ) triple
+  % a break at a space elides that space in the output
+  8 dict begin
+  /maxwidths exch def
+  maxwidths length 0 eq { [exch] } {  % don't break unless maxwidths nonempty
+    removetrailingspaces removeleadingspaces
+    /fss exch def
+    fss tryshow
+    /s [ 2 3 fss length {fss 1 index get ( ) eq {3 idiv} {pop} ifelse} for
+         fss length 3 idiv
+    ] def
+    /x 0 def    % index into s
+    /i 0 def    % starting index
+    /j 0 def    % ending index
+    /l s length def
+    [{ x l ge {exit} if s x get dup i eq
+       { /i exch 1 add store /j i store }    % skip leading spaces
+       { .sshow. 1 index 2 mul get
+         .sshow. i 2 mul get sub maxwidths 0 get le
+	 { /j exch store }    % next "word" fits
+	 { pop i j eq maxwidths length 1 le and
+	   { exit }    % done
+	   { fss i 3 mul j i sub 3 mul getinterval removetrailingspaces
+	     /maxwidths maxwidths ccdr store
+	     /x x 1 sub store /i s x get 1 add store /j i store
+	   } ifelse
+	 } ifelse
+       } ifelse
+       /x x 1 add store
+     } loop
+     fss dup length i 3 mul dup 3 1 roll sub
+     dup 0 eq {pop pop pop} {getinterval} ifelse
+    ] end
+  } ifelse
+} bind readonly def
+
+/isolatespaces {   % [font size string ...] isolatespaces [font size string ...]
+  3 dict begin
+  /fss exch def
+  [ 0 3 fss length 3 sub {
+    fss exch 3 getinterval aload pop 2 index null ne {
+    { ( ) search
+      { dup () eq {pop} {3 1 roll 4 index 4 index 4 2 roll} ifelse
+        exch dup () eq {pop exit} {3 index 3 index 3 2 roll} ifelse
+      } {exit} ifelse
+    } loop } if
+  } for ]
+  end
+} bind readonly def
+
+/ccdr {    % array ccdr array[1:]ORarray
+  dup length dup 1 le
+  {pop} {1 exch 1 sub getinterval} ifelse } bind readonly def
+
+/justifyline {    % fss width justifyline fss
+  % replace isolated spaces with apportioned fixed widths
+  5 dict begin
+  /w exch def
+  /fss exch def
+  /s [ 2 3 fss length {fss 1 index get ( ) eq {3 idiv} {pop} ifelse} for ] def
+  fss tryshow
+  /w w .sshow. dup length 2 sub get sub store   % extra width needed
+  /x 0 s {.sshow. exch 2 mul 2 copy 2 add get 3 1 roll get sub add} forall def
+  x 0 eq { [null w 2 div 0 fss aload pop null w 2 div 0] } {
+    /m w x add x div def    % spacewidth multiplier
+    s { .sshow. 1 index 2 mul 2 copy 2 add get 3 1 roll get sub m mul
+        exch 3 mul fss exch [null 5 4 roll 0] putinterval } forall fss
+  } ifelse
+  end
+} bind readonly def  
+
+/pshown {/.pshow. .pshow. .sshow. cat def} bind readonly def
+/paraend {/.sshow. .pshow. end def} bind readonly def
+/parabeg {1 add dict begin /.pshow. [] def} bind readonly def
+
+/parashowjustified { % fss width dx(firstline) dy(interline) parashowjustified -
+  6 parabeg
+  /dy exch neg def
+  /dx exch def
+  /w exch def
+  isolatespaces [w dx sub w] breakfss
+  /lines exch def
+  /last lines length 1 sub def
+  0 1 last {/i exch def
+    lines i get gsave i 0 eq {dx 0 rmoveto} if
+    i last ne {w i 0 eq {dx sub} if justifyline} if sshow pshown grestore 0 dy rmoveto
+  } for
+  paraend
+} bind readonly def
+
+/parashowleft { % fss width dx(firstline) dy(interline) parashowleft -
+  4 parabeg
+  /dy exch neg def
+  /dx exch def
+  /w exch def
+  isolatespaces [w dx sub w] breakfss
+  /lines exch def
+  lines 0 get gsave dx 0 rmoveto sshow pshown grestore
+  0 dy rmoveto
+  lines 1 lines length 1 sub getinterval
+  {gsave sshow pshown grestore 0 dy rmoveto} forall
+  paraend
+} bind readonly def
+
+/eshow {    % fss eshow -  (show fss, leftward offset by its width)
+  dup tryshow .sshow. dup length 2 sub get neg 0 gsave rmoveto sshow grestore
+} bind readonly def
+
+/endshow {    % fss endshow -  (show fss ending at currentpoint)
+  dup tryshow .sshow. dup length 2 sub 2 getinterval aload pop
+  neg exch neg exch rmoveto sshow
+} bind readonly def
+
+/parashowright { % fss width dx(firstline) dy(interline) parashowright -
+  4 parabeg
+  /dy exch neg def
+  /dx exch def
+  /w exch def
+  isolatespaces [w dx sub w] breakfss
+  /lines exch def
+  lines 0 get gsave w dx sub 0 rmoveto eshow pshown grestore
+  0 dy rmoveto
+  lines 1 lines length 1 sub getinterval
+  {gsave w 0 rmoveto eshow pshown grestore 0 dy rmoveto} forall
+  paraend
+} bind readonly def
+
+/parashowcenter { % fss width dy(interline) parashowcenter -
+  2 parabeg
+  /dy exch neg def
+  /w exch def
+  isolatespaces [w] breakfss
+  {gsave w 2 div 0 rmoveto chshow pshown grestore 0 dy rmoveto} forall
+  paraend
+} bind readonly def
+  
+/parashowholed {
+  % fss [[l00 r00 l01 r01 ...][l10 r10 ...]...] dy parashow [lx0 rx0 ...] dy
+  % second arg gives, for each line, left and right edges of text segments
+  % positions are relative to currentpoint
+  16 parabeg
+  gsave currentpoint translate
+  /dy exch neg def
+  /a exch def
+  /intervals [ a{length 2 idiv}forall ] def 
+  /minx maxreal a{{min}forall}forall def
+  /maxx minreal a{{max}forall}forall def
+  /maxx-minx maxx minx sub def
+  isolatespaces
+  [ a {/b exch def b length 0 ne
+      {0 2 b length 1 sub
+        {b exch 2 getinterval aload pop exch sub} for} if
+    } forall
+    maxx-minx    % full width for anything left
+  ] /maxwidths exch def
+  maxwidths breakfss /segments exch def
+  /lineno 0 def    % increments after each array in a
+  /ss [a {/b exch def b length 0 ne
+       {0 2 b length 1 sub {b exch get lineno} for} if
+        /lineno lineno 1 add store} forall] def
+  % we justify each segment except the last
+  /last segments length 1 sub def
+  0 1 last {
+    /i exch def segments i get {maxwidths i get} stopped {pop pop} if
+    i last lt {justifyline} if
+    {ss i 2 mul 2 getinterval aload pop} stopped
+    {pop pop pop minx lineno /lineno lineno 1 add store} if dy mul moveto sshow pshown
+  } for
+  0 currentpoint exch pop dy add grestore rmoveto
+  paraend
+} bind readonly def
