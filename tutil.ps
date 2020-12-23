@@ -37,6 +37,14 @@
   exch 2matrix exch [exch 0 0 1 0 0] matrix concatmatrix
 } bind readonly def
 
+/goback {    % k goback -
+  % insert a fixed space reversing previous k fss elements
+  gsave nulldevice 0 0 moveto
+  3 mul array astore aload 1 dict begin sshow end
+  null currentpoint neg exch neg exch
+  grestore
+} bind readonly def
+
 % calculate bounding box of text
 /cbox {    % [font size string font size string ...] cbox llx lly ulx uly
   string2fss
