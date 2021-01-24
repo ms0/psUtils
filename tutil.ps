@@ -15,11 +15,11 @@
 } bind readonly def
 
 /superscript {    % size-or-matrix superscript matrix
-  2matrix [2 3 div 0 0 2 index 0 .5] exch matrix concatmatrix
+  2matrix dup 3 get 2 div [2 3 div 0 0 2 index 0  7 6 roll] matrix concatmatrix
 } bind readonly def
 
 /subscript {    % size-or-matrix subscript matrix
-  2matrix [2 3 div 0 0 2 index 0 -1 6 div] exch matrix concatmatrix
+  2matrix dup 3 get -6 div [2 3 div 0 0 2 index 0 7 6 roll] matrix concatmatrix
 } bind readonly def
 
 /raise {    % size-or-matrix factor raise matrix
@@ -29,19 +29,31 @@
 /tan {dup sin exch cos div} bind readonly def
 
 /oblique {    % size-or-matrix angle oblique matrix
-  tan exch 2matrix dup dup 3 get exch 0 get div 3 2 roll mul
-  [1 0 4 3 roll 1 1 index -.25 mul 0] exch matrix concatmatrix
+  tan exch 2matrix dup 3 get
+  [1 0 6 5 roll dup 1 exch -.25 mul 7 6 roll mul 0] matrix concatmatrix
 } bind readonly def
 
 /expand {    % size-or-matrix factor expand matrix
   exch 2matrix exch [exch 0 0 1 0 0] matrix concatmatrix
 } bind readonly def
 
-/goback {    % k goback -
+/goback {    % k goback null dx dy
   % insert a fixed space reversing previous k fss elements
   gsave nulldevice 0 0 moveto
   3 mul array astore aload 1 dict begin sshow end
   null currentpoint neg exch neg exch
+  grestore
+} bind readonly def
+
+/overlay {    % null dx dy fss^k k overlay null dx' dy' fss^k null -dx' -dy'
+  % center the k fss elements on the space specified by null dx dy
+  % typical usage: k1 goback fss^k2 k2 overlay
+  gsave nulldevice 0 0 moveto
+  1 add 3 mul array astore dup 1 dict begin sshow end
+  dup 1 2 getinterval aload 3 1 roll
+  null currentpoint -2 div exch -2 div
+  dup 6 5 roll add 6 1 roll exch dup 5 4 roll add 5 1 roll 6 3 roll astore pop
+  3 array astore cat aload pop
   grestore
 } bind readonly def
 
