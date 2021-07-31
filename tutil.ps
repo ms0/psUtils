@@ -484,7 +484,9 @@
 2 dict begin
 /m 1{{2 mul}loop}bind stopped pop pop def
 /d m def
-{{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped clear
+mark
+{{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped
+cleartomark
 /maxreal m /-maxreal m neg end def def
 /minreal 1. {dup 2 div dup 0 ne {exch pop} {pop exit} ifelse}bind loop def
 /-minreal minreal neg def
