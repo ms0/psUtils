@@ -16,7 +16,7 @@ false echo
 /e 2.718281828459045 define
 /ln2 .6931471805599453 define
 /log2 {dup ln //ln2 div dup sgn exch abs floor mul   % x roundtozero(log2?(x))
-       exch 2 2 index exp div ln //ln2 div add
+       exch 2 2 index dup 0 le {exp div} {neg exp mul} ifelse ln //ln2 div add
 } bind readonly define
 /exp-1 {dup abs //ln2 le
         {dup         9. div 1. add
@@ -35,6 +35,32 @@ false echo
 /Infinity {2 1000 exp} stopped {pop} if def
 /-Infinity Infinity neg def
 /NaN Infinity dup sub def
+
+/min {2 copy gt {exch} if pop} bind readonly default
+/max {2 copy lt {exch} if pop} bind readonly default
+
+2 dict begin
+/m 1{{2 mul}loop}bind stopped pop pop def
+/d m def
+mark
+{{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped
+cleartomark
+/maxreal m /-maxreal m neg end def def
+/minreal 1. {dup 2 div dup 0 ne {exch pop} {pop exit} ifelse}bind loop def
+/-minreal minreal neg def
+
+/mininteger -1 {dup 1 bitshift dup 0 ne {exch pop} {pop exit} ifelse}bind loop def
+/maxinteger -1 mininteger sub def
+/-maxinteger maxinteger neg def
+/integerbits mininteger neg log2 1 add cvi def
+
+/bitcount { dup 0 lt {//mininteger xor bitcount 1 add} {
+  0 1 integerbits {exch dup 0 eq {pop exit} {dup 1 sub and exch pop} ifelse} for
+ } ifelse
+} bind readonly define
+
+/mantissabits maxreal dup log2 round cvi integerbits 1 sub sub 2 exch exp div cvi bitcount def
+/exponentbits maxreal log2 round cvi 1 add def    % extra 1 for exponent sign
 
 /undefinedresultdict <<
   /exp load { pop pop Infinity }
