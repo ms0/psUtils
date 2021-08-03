@@ -59,8 +59,8 @@ cleartomark
  } ifelse
 } bind readonly define
 
-/mantissabits maxreal dup log2 round cvi integerbits 1 sub sub 2 exch exp div cvi bitcount def
-/exponentbits maxreal log2 round cvi 1 add def    % extra 1 for exponent sign
+/exponentbits maxreal log2 log2 round cvi 1 add def  % extra 1 for exponent sign
+/mantissabits 0 1 99 {dup 2 exch exp dup .9 sub ne {pop}{1 sub exit}ifelse} for def
 
 /undefinedresultdict <<
   /exp load { pop pop Infinity }
