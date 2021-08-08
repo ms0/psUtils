@@ -1,0 +1,52 @@
+/rc4init {    % key rc4init rc4proc
+  { ()    % state
+    { dup 256 2 copy get 1 add 255 and put
+      dup 257 2 copy get 2 index dup 256 get get add 255 and put
+      dup dup 256 get 2 copy get 2 index dup 257 get 2 copy get
+      dup 4 index add 255 and 7 1 roll
+      4 1 roll 3 -1 roll put put
+      get
+    } exec
+  } dup length array copy cvx dup 0 4 3 roll
+  258 string 0 1 255 {1 index exch dup put} for exch 0 0  % state key j k
+  0 1 255 {
+    % state key j k i
+    4 index exch 2 copy get    % state key j k state i state[i]
+    5 index 5 index get        % state key j k state i state[i] key[j]
+    1 index add 5 -1 roll add 255 and     % state key j state i state[i] k
+    dup 5 1 roll               % state key j k state i state[i] k
+    3 index exch 2 copy get    % state key j k state i state[i] state k state[k]
+    4 1 roll 3 -1 roll put put % state key j k
+    exch 1 add dup 3 index length ge {pop 0} if exch    % state key j k
+  } for pop pop pop    % initialstate
+  put executeonly
+} bind readonly def
+
+
+/rc4 (\0) rc4init def
+
+/rand32 {0 4 {8 bitshift rc4 or} repeat} bind readonly def
+pstack
+
+/rand16 {0 2 {8 bitshift rc4 or} repeat} bind readonly def
+pstack
+
+/rand24 {0 3 {8 bitshift rc4 or} repeat} bind readonly def
+pstack
+
+/rand01 {rand24 16#ffffff div} bind readonly def
+pstack
+
+/randnorm2 {  % randnorm2 x y (independent normal random variables, sigma=1)
+  rand01 dup 0 eq
+  {dup}
+  {ln -2 mul sqrt rand01 360 mul dup cos 2 index mul 3 1 roll sin mul}
+  ifelse
+} bind readonly def
+
+/randgauss2d {  % randgauss2d x y (2d Gaussian, sigma=1)
+  rand01 dup 0 eq
+  {dup}
+  {ln neg sqrt rand01 360 mul dup cos 2 index mul 3 1 roll sin mul}
+  ifelse
+} bind readonly def
