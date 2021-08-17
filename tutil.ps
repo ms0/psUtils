@@ -481,9 +481,23 @@
 /asin {dup dup mul 1. exch sub sqrt atan} bind readonly def
 /acos {dup dup mul 1. exch sub sqrt exch atan} bind readonly def
 
+/Infinity {9 9999 exp} stopped {pop} if def
+Infinity 9 eq {
+  /Infinity dup def
+  /-Infinity dup def
+  /NaN dup def
+} {
+  /-Infinity {Infinity neg} stopped {pop dup} if def
+  /NaN {Infinity dup sub} stopped {pop pop dup} if def
+} ifelse
+
 2 dict begin
-/m 1{{2 mul}loop}bind stopped pop pop def
-/d m def
+/m 1 Infinity type /realtype eq {
+  {{dup 2 mul Infinity eq {exit} {2 mul} ifelse}loop}bind stopped {pop pop} if
+}{
+  {{2 mul}loop}bind stopped pop pop def
+} ifelse
+def /d m def
 mark
 {{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped
 cleartomark

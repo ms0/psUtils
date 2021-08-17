@@ -32,16 +32,26 @@ false echo
         ifelse} bind readonly define
 /ln1+ {dup 1. add dup ln 3 1 roll dup 3 1 roll 1. sub sub exch div add} bind define
 
-/Infinity {2 1000 exp} stopped {pop} if def
-/-Infinity Infinity neg def
-/NaN Infinity dup sub def
+/Infinity {9 9999 exp} stopped {pop} if def
+Infinity 9 eq {
+  /Infinity dup def
+  /-Infinity dup def
+  /NaN dup def
+} {
+  /-Infinity {Infinity neg} stopped {pop dup} if def
+  /NaN {Infinity dup sub} stopped {pop pop dup} if def
+} ifelse
 
 /min {2 copy gt {exch} if pop} bind readonly default
 /max {2 copy lt {exch} if pop} bind readonly default
 
 2 dict begin
-/m 1{{2 mul}loop}bind stopped pop pop def
-/d m def
+/m 1 Infinity type /realtype eq {
+  {{dup 2 mul Infinity eq {exit} {2 mul} ifelse}loop}bind stopped {pop pop} if
+}{
+  {{2 mul}loop}bind stopped pop pop def
+} ifelse
+def /d m def
 mark
 {{/d d 2 div store /m m d add dup m eq {exit} if store}loop}bind stopped
 cleartomark
@@ -62,9 +72,8 @@ cleartomark
 /exponentbits maxreal log2 log2 round cvi 1 add def  % extra 1 for exponent sign
 /mantissabits 0 1 99 {dup 2 exch exp dup .9 sub ne {pop}{1 sub exit}ifelse} for def
 
-/undefinedresultdict <<
-  /exp load { pop pop Infinity }
->> def
+/undefinedresultdict
+<< Infinity type /realtype eq {/exp load { pop pop //Infinity } } if >> def
 
 errordict /undefinedresult 2 copy get /default-undefinedresult exch def
 { //undefinedresultdict exch 2 copy known
@@ -148,7 +157,7 @@ userdict /cvs known not {
       dup 0. eq
        {pop (0.) exch copy length add}
        {    %stack: string 0 #chars substring num     %num not zero
-        dup log floor 8 sub dup 38 gt
+        dup log floor 8 sub dup Infinity eq
          {pop pop (Infinity) exch copy length add}
          {cvi exch
           % have num on top of stack; split it into two pieces for conversion
