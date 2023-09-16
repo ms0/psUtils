@@ -1,0 +1,81 @@
+% draweps procedure displays eps uncompressed monochrome preview from .eps file,
+% drawbmpmono procedure displays a bmpmono file
+
+/draweps {  % filename draweps -
+  (r) file /f exch def
+  /s 1000 string def
+  { f s readline not {(premature EOF encountered)== quit} if
+    (%%BeginPreview:) anchorsearch {pop exit} {pop} ifelse
+  } loop
+  [ exch 4 {token {exch} {(%%BeginPreview line broken)== quit} ifelse} repeat ]
+  /dims exch def % [width height depth lines]
+  dims 2 get 1 ne {(depth not 1)== quit} if
+  /width dims 0 get def
+  /height dims 1 get def
+  /depth dims 2 get def
+  /y 0 def
+  /line width 7 add 8 idiv string def
+  1 setlinewidth 1 setlinecap 1 setlinejoin
+  currentpagedevice /PageSize get aload pop /H exch def /W exch def
+  W width sub 2 div H height sub 2 div translate
+  /drawpixel /closepath load def
+  /nextpixel {1 0 rmoveto} bind def
+  /nextline {0 currentpoint exch pop stroke 1 sub moveto} bind def
+  0 height moveto
+  height
+  { f line readhexstring not {pop (premature EOF encountered)== quit} if
+    { 8 { dup 128 and 0 ne {drawpixel 128 xor} if 1 bitshift nextpixel} repeat pop } forall   % render line
+    nextline
+  } repeat
+  showpage
+} bind readonly def
+
+/reverse {    % reverse (in place) a string or array
+   dup length dup 1 sub exch 2 idiv 1 sub 0 1 3 2 roll
+   %stack: object length-1 0 1 length/2-1
+   {  %stack: object length-1 index
+    2 copy sub       %stack: o l-1 i l-1-i
+    3 index exch 2 copy get       %stack: o l-1 i o l-1-i o[l-1-i]
+    5 index 5 4 roll 2 copy get    %stack: o l-1 o l-1-i o[l-1-i] o i o[i]
+    4 3 roll exch 4 1 roll put put
+   }
+   for pop
+} bind readonly def
+
+/s2n { reverse 0 exch {exch 8 bitshift or} forall } bind def
+
+/drawbmpmono {  % filename drawbmpmono -
+  (r) file /f exch def
+  /s 62 string def
+  f s readstring not {(file too small)== quit} if pop
+  s 0 2 getinterval (BM) ne {(not BM file)== quit} if
+  /width s 18 4 getinterval s2n def
+  /height s 22 4 getinterval s2n def
+  /planes s 26 2 getinterval s2n def
+  /bitsperpixel s 28 2 getinterval s2n def
+  /compression s 30 4 getinterval s2n def
+  /xres s 38 4 getinterval s2n .0254 mul def    % pixels per inch
+  /yres s 42 4 getinterval s2n .0254 mul def    % pixels per inch
+  /off s 10 4 getinterval s2n def
+  planes 1 ne {(not single plane)== quit} if
+  bitsperpixel 1 ne {(not bmpmono)== quit} if
+  compression 0 ne {(compressed)== quit} if
+  f off setfileposition
+  /bytesperline width 31 add 32 idiv 4 mul def
+  /line bytesperline string def
+  currentpagedevice /PageSize get aload pop /H exch def /W exch def
+  W 2 div H 2 div translate
+  72 xres div 72 yres div scale  
+  1 setlinewidth 1 setlinecap 1 setlinejoin
+  /drawpixel /closepath load def
+  /nextpixel {1 0 rmoveto} bind def
+  /nextline {0 currentpoint exch pop stroke 1 add moveto} bind def
+  width -2 div height -2 div translate
+  0 0 moveto
+  height
+  { f line readstring not {pop (premature EOF encountered)== quit} if
+    { 8 { dup 128 and 0 ne {drawpixel 128 xor} if 1 bitshift nextpixel} repeat pop } forall   % render line
+    nextline
+  } repeat
+  showpage
+} bind def  
