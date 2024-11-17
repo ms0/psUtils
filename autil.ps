@@ -86,9 +86,10 @@ errordict /undefinedresult 2 copy get /default-undefinedresult exch def
 /asin {dup dup mul 1. exch sub sqrt atan} bind readonly define
 /acos {dup dup mul 1. exch sub sqrt exch atan} bind readonly define
 /tan {dup sin exch cos div} bind readonly define
-/ctn {dup cos exch sin div} bind readonly define
+/cot {dup cos exch sin div} bind readonly define
 /sec {1. exch cos div} bind readonly define
 /csc {1. exch sin div} bind readonly define
+/ctn /cot load define
 /cbrt {dup 0. ne {dup abs .333333333333333333 exp 1 index 0. lt {neg} if
        dup dup dup add 4 1 roll mul div add 3 div} if} bind readonly define
       
