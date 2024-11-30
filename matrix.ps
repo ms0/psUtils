@@ -1,0 +1,300 @@
+% matrices are represented as an array of rows, with each row an array of
+% elements; so if we have a matrix M, then Mij is gotten by M i get j get
+
+
+/madd       % matrix add
+{
+   dup dup 0 get length exch length  % A B #cols #rows
+   dup array   % A B #cols #rows C
+   0 1 3 index 1 sub {2 copy 5 index array put pop} for     % create rows
+   3 1 roll  % A B C #cols #rows
+   0 1 3 2 roll 1 sub
+   {
+      % A B C #cols rowindex
+      0 1 3 index 1 sub
+      {
+         % A B C #cols rowindex colindex
+         5 index 2 index get 1 index get 5 index 3 index get 2 index get add
+         4 index 3 index get 3 1 roll put
+      }
+      for pop
+    }
+    for pop 3 1 roll pop pop
+} bind readonly define
+
+
+
+/msub       % matrix subtract
+{
+   dup dup 0 get length exch length  % A B #cols #rows
+   dup array   % A B #cols #rows C
+   0 1 3 index 1 sub {2 copy 5 index array put pop} for     % create rows
+   3 1 roll  % A B C #cols #rows
+   0 1 3 2 roll 1 sub
+   {
+      % A B C #cols rowindex
+      0 1 3 index 1 sub
+      {
+         % A B C #cols rowindex colindex
+         5 index 2 index get 1 index get 5 index 3 index get 2 index get sub
+         4 index 3 index get 3 1 roll put
+      }
+      for pop
+    }
+    for pop 3 1 roll pop pop
+} bind readonly define
+
+
+
+/mneg { [exch {[exch {neg} forall]} forall] } bind readonly define  % negate
+
+
+
+/mmul       % matrix multiply
+{
+   2 copy exch length array exch 0 get length  % A B C #cols
+   exch dup length 0 1 3 2 roll 1 sub   % A B #cols C
+   {2 copy 4 index array put pop} for   % create rows
+   dup length  % A B #cols C #rows
+   3 index length  % A B #cols C #rows summationcount
+   3 2 roll 4 1 roll 3 1 roll % A B C summationcount #cols #rows
+   0 1 3 2 roll 1 sub
+   {
+      % A B C sumcount #cols rowindex
+      0 1 3 index 1 sub
+      {
+         % A B C sumcount #cols rowindex colindex
+         0
+         0 1 6 index 1 sub
+         {
+            % A B C sumcount #cols rowindex colindex sum sumindex
+            8 index 4 index get 1 index get  % Aij
+            8 index 3 2 roll get 3 index get mul add
+         }
+         for
+         % A B C sumcount #cols rowindex colindex Cik
+         5 index 3 index get 3 1 roll put
+      }
+      for
+      pop   % pop rowindex
+   }
+   for
+   pop pop 3 1 roll pop pop
+} bind readonly define
+
+
+
+/mtranspose % matrix transpose
+{
+   dup dup length exch 0 get length  % M #rows #cols
+   dup array   % M #rows #cols T
+   0 1 3 index 1 sub {2 copy 5 index array put pop} for % create rows of T
+   3 1 roll  % M T #rows #cols
+   0 1 3 2 roll 1 sub
+   {
+      % M T #rows colindex
+      0 1 3 index 1 sub
+      {
+         % M T #rows colindex rowindex
+         4 index 1 index get 2 index get 4 index 3 index get 3 1 roll put
+      }
+      for pop
+    }
+    for pop exch pop
+} bind readonly define
+
+
+/mcopy % matrix copy
+{
+   dup dup length exch 0 get length  % M #rows #cols
+   1 index array  % M #rows #cols C
+   0 1 5 -1 roll 1 sub  % M #cols C 0 1 #rows-1
+   {2 copy 5 index 4 -1 roll get 4 index array copy put} for  % copy rows
+   3 1 roll pop pop
+} bind readonly define
+
+
+/mI % identity matrix, dimension is arg
+{
+   dup array  % dim I
+   0 1 3 index 1 sub {2 copy 4 index array % dim I i I i row
+                      0 1 7 index 1 sub {2 copy 0 put pop} for  % init to 0
+                      dup 5 -1 roll 1 put put} for exch pop
+}bind readonly define
+
+
+
+/mdet  % compute determinant of matrix
+{
+    mcopy 1 exch
+    dup length 1 sub
+    0 1 2 index
+    { % for each column
+      % det M length-1 j 
+      dup 3 index exch get % det M length-1 j rowj
+      2 copy exch get      % det M length-1 j rowj rowj[j]
+      2 index 1 add 1 5 index
+      {  % det M length-1 j rowj M[j][j] i
+         dup 6 index exch get dup 5 index get
+         % det M length-1 j rowj rowj[j] i rowi rowi[j]
+         dup abs 4 index abs gt
+         {7 index 6 -3 roll exch pop exch put 6 -1 roll neg 6 1 roll}
+         {pop pop pop}
+         ifelse
+      } for
+      % det M length-1 j rowj rowj[j]
+      dup 7 -1 roll mul dup 7 1 roll 0 eq {pop pop pop exit} if
+      % det M length-1 j rowj rowj[j]
+      4 index 3 index 3 index put
+      % subtract this row from rows following
+      2 index 1 add 1 5 index
+      {
+         % det M length-1 j rowj rowj[j] i
+         5 index exch get  % det M length-1 j rowj rowj[j] rowi
+         dup 4 index get 2 index div
+         % det M length-1 j rowj rowj[j] rowi rowi[j]/rowj[j]
+         4 index 1 add 1 7 index
+         {  % det M length-1 j rowj rowj[j] rowi rowi[j]/rowj[j] k
+            2 index exch 2 copy get
+            % det M length-1 j rowj rowj[j] rowi rowi[j]/rowj[j] rowi k rowi[k] 
+            6 index 2 index get 4 index mul sub put
+         } for
+         pop pop
+      } for
+      pop pop pop
+    } for
+    pop pop
+} bind readonly define
+
+
+
+/minvert  % invert matrix, return null if singular
+{
+    mcopy
+    dup length mI exch
+    dup length 1 sub   % I M length-1 j
+    0 1 2 index
+    { % for each column
+      % I M length-1 j 
+      dup 3 index exch get dup 2 index get % I M length-1 j M[j] M[j][j]
+      5 index 3 index get      % I M length-1 j M[j] M[j][j] I[j]
+      3 index 1 add 1 6 index
+      {  % I M length-1 j M[j] M[j][j] I[j] i
+         dup 7 index exch get dup 6 index get
+         % I M length-1 j M[j] M[j][j] I[j] i M[i] M[i][j]
+         dup abs 5 index abs gt
+         { 9 index 3 index 2 copy get %I i I[i]
+           7 -1 roll exch 7 1 roll put
+           6 2 roll 8 index exch 5 -2 roll pop put }
+         { pop pop pop }
+         ifelse
+      } for
+      % I M length-1 j M[j] M[j][j] I[j]
+      exch dup 0 eq {pop pop pop pop 3 -1 roll pop null 3 1 roll exit} if
+      % I M length-1 j M[j] I[j] M[j][j]
+      6 index 4 index 3 index put
+      5 index 4 index 4 index put
+      % subtract this row from rows following
+      3 index 1 add 1 6 index
+      {
+         % I M length-1 j M[j] I[j] M[j][j] i
+         dup 8 index exch get exch % I M length-1 j M[j] I[j] M[j][j] I[i] i
+         7 index exch get % I M length-1 j M[j] I[j] M[j][j] I[i] M[i]
+         dup 6 index get 3 index div
+         % I M length-1 j M[j] I[j] M[j][j] I[i] M[i] M[i][j]/M[j][j]
+         0 1 9 index
+         { % I M length-1 j M[j] I[j] M[j][j] I[i] M[i] M[i][j]/M[j][j] k
+           3 index exch 2 copy get
+           7 index 2 index get 4 index mul sub put 
+         } for
+         6 index 1 add 1 9 index
+         { % I M length-1 j M[j] I[j] M[j][j] I[i] M[i] M[i][j]/M[j][j] k
+            2 index exch 2 copy get
+            8 index 2 index get 4 index mul sub put
+         } for
+         pop pop pop
+      } for
+      pop pop pop pop
+    } for
+    % I M length-1
+    % now from bottom to top, clear columns
+    2 index null ne
+    {
+      dup -1 0 {
+        % I M length-1 j
+        dup 4 index exch get exch dup 4 index exch get dup 2 index get
+        % I M length-1 I[j] j M[j] M[j][j]
+        0 1 4 index 1 sub {
+          % I M length-1 I[j] j M[j] M[j][j] i
+          dup 7 index exch get 4 index get 2 index div  % M[i][j]/M[j][j]
+          exch 8 index exch get
+          % I M length-1 I[j] j M[j] M[j][j] M[i][j]/M[j][j] I[i]
+          0 1 8 index {
+            2 copy 2 copy get % k I[i] k I[i][k]
+            9 index 5 -1 roll get 5 index mul sub put
+          } for
+          pop pop 
+        } for
+        0 1 6 index {
+          % divide row j by M[j][j]
+          % I M length-1 I[j] j M[j] M[j][j] k
+          4 index exch 2 copy get 3 index div put
+        } for
+        pop pop pop pop
+      } for
+    } if
+    pop pop
+} bind readonly define
+
+
+% least squares fit of function
+
+% Let f(x) be a function of one variable
+% Let fi(x) be approximating functions of one variable (i = 1,...,m)
+% Let xj be points and wj be weights (j = 1,...,n)
+% We wish to approximate f(x) by ai fi(x) where ai are coefficients minimizing
+%
+%                   [ [f(xj) - ai fi(xj)] wj ] ^ 2
+%
+% Setting the derivatives wrt ak to zero gives the equations
+%
+%                   wj^2 [f(xj) - ai fi(xj)] fk(xj) = 0        (k = 1,...,n)
+%
+% Defining the n x m matrix M as Mij = wj fi(xj),
+% the m x 1 matrix F as Fj1 = wj f(xj),
+% the n x 1 matrix A as Ai1 = ai,
+% this becomes
+%
+%                   M M^T A = M F
+%
+% Weighting: setting wj to 1 is normal least square fit
+%            setting wj to 1 / f(xj) minimizes square of relative error
+%
+
+% args: procedure-for-function-f
+%       array-of-points-xj
+%       array-of-weights-wj
+%       array-of-procedures-for-functions-fi
+% vals: array-of-coefficients-ai
+
+% since matrices are represented as arrays of rows, we'll transpose the above!
+
+/leastsquaresfit     % {f} [xj] [wj] [{fi}] -> [ai]
+{
+  [[ 6 2 roll
+     0 1 4 index length 1 sub
+     { 3 index 1 index get 5 index exec 3 index 3 2 roll get mul 5 1 roll }
+     for 4 3 roll pop counttomark 2 add 3 roll
+  ]] 4 1 roll        % [[wj*fj]] [xj] [wj] [{fi}]
+  [ 4 1 roll
+    { % [[wj*fj]] [ [xj] [wj] {fi}
+      [ 4 1 roll 0 1 4 index length 1 sub
+        { 3 index 1 index get 2 index exec 3 index 3 2 roll get mul 4 1 roll }
+        for pop counttomark 1 add 2 roll
+      ] 3 1 roll
+    }
+    forall pop pop
+  ]
+  % [[wj*fj]] [[wj*f1(xj)][wj*f2(xj)]...[wj*fn(xj)]]
+  dup mtranspose 2 copy mmul minvert 4 1 roll exch pop mmul exch mmul 0 get
+} bind readonly define
