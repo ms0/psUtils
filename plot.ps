@@ -33,6 +33,12 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+/define {2 copy //def pop =print ( defined) = } bind readonly def
+/default {1 index where {pop pop pop} {define} ifelse} bind readonly def
+
+/path? {
+   false mark {cleartomark exit} dup dup dup pathforall mark ne {true} if
+} bind define
 
 /execORpop /pop load default
 
