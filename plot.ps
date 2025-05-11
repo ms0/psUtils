@@ -31,6 +31,10 @@
 %        so p() are plotted. To give 3-D cues, points are plotted as small
 %        rings of fixed size, with their axes tangent to the curve.
 %
+%  For ease of use in simple cases, we've defined plotyofx and plotroftheta:
+%    f a b plotyofx -  plots y = f(x) for a<=x<=b, with axes and grid
+%    f plotroftheta -  plots r = f(theta) for 0<=theta<=360, with axes and grid
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 /define {2 copy //def pop =print ( defined) = } bind readonly def
@@ -494,6 +498,119 @@ currentdict dup /FID undef end definefont pop
   Axes { begin plotaxis end} forall
 } bind define
 
+/todec { % min max todec newmin labelincrement newmax
+  10 dict begin
+  /mx exch def
+  /mn exch def
+  /d mx mn sub def
+  /dd 10 d log round 1 sub exp def    % power of 10 (increment for labels)
+  mn dd div floor dd mul
+  dd
+  mx dd div ceiling dd mul
+  end
+} bind def
+
+/plotyofx { % fcn minx maxx plotyofx -
+  20 dict begin
+  /H10 /ISOHelvetica findfont 10 scalefont def
+  /maxx exch def
+  /minx exch def
+  /f exch def
+  /dx maxx minx sub def
+  /n 100 def
+  /miny minx f def
+  /maxy miny def
+   1 1 n {
+    n div dx mul minx add f dup miny min /miny exch store maxy max /maxy exch store
+  } for
+  /dy maxy miny sub def
+  minx maxx todec /amaxx exch def /adx exch 10 div def /aminx exch def
+  miny maxy todec /amaxy exch def /ady exch 10 div def /aminy exch def
+  /ax aminx 0 le amaxx 0 ge and {0}{aminx} ifelse def
+  /ay aminy 0 le amaxy 0 ge and {0}{aminy} ifelse def
+  /View {2 {36 add exch} repeat} def
+  /MapAll {miny sub 512 mul dy div exch minx sub 512 mul dx div exch} bind def
+  gsave
+  .75 setgray
+  aminx adx 10 mul amaxx adx 2 div add {/yax exch def yax ax sub abs adx gt
+			  {aminy ady amaxy {pop yax exch} plotfunction} if} for
+  aminy ady 10 mul amaxy ady 2 div add {/xay exch def xay ay sub abs ady gt
+			  {aminx adx amaxx {pop xay} plotfunction} if} for
+  grestore
+  /Axes [
+    << /LabelFont H10
+       /LabelOrientation 2
+       /LabelReference [-1 -1]
+       /LineWidth 0
+       /Map {ay MapAll}
+       /For [aminx adx amaxx adx 2 div add]
+       /TickStyle -1
+       /TickWidth [0 0 0]
+       /TickLength [3 2 1]
+       /Tick [2 5 1]
+    >>
+    <</LabelFont H10
+       /LabelOrientation 1
+       /LabelReference [-1 -1]
+       /LineWidth 0
+       /Map {ax exch MapAll} bind
+       /For [aminy ady amaxy ady 2 div add]
+       /TickStyle -1
+       /TickWidth [0 0 0]
+       /TickLength [3 2 1]
+       /Tick [2 5 1]
+    >>
+  ] def
+  plotaxes
+  minx dx n div maxx /f load
+  plotfunction
+  end
+} bind define
+
+/plotroftheta {    % f plotroftheta -
+  % theta in degrees
+  20 dict begin
+  /H10 /ISOHelvetica findfont 10 scalefont def
+  /f exch def
+  /R 0 def
+  0 .25 359 {f abs R max /R exch store} for
+  0 R 2 mul todec /R exch 2 div def /dr exch def pop
+  /MapAll {R div 256 mul /r exch def dup cos r mul 292 add exch sin r mul 292 add} def
+  /View {} def
+  gsave
+  .75 setgray
+  dr dr R dr 2 div sub {/s exch def 0 .25 360 {pop s} plotfunction} for
+  15 15 345 {/t exch def 0 R R {pop t exch} plotfunction} for
+  grestore
+  /Axes [
+    << /LabelFont H10
+       /LabelCurvature true
+       /LabelOrientation 0
+       /LabelReference [0 0]
+       /LineWidth 0
+       /Map {R MapAll}
+       /For [0 1 359]
+       /TickStyle -1
+       /TickWidth [0 0 0]
+       /TickLength [3 3 1]
+       /Tick [3 5 1]
+    >>
+    << /LabelFont H10
+       /LabelOrientation 2
+       /LabelReference [0 0]
+       /LineWidth 0
+       /Map {0 exch MapAll}
+       /For [0 dr 10 div R dr 20 div add]
+       /TickStyle -1
+       /TickWidth [0 0 0]
+       /TickLength [3 2 1]
+       /Tick [2 5 1]
+    >>
+  ] def
+  plotaxes
+  0 .25 360 /f load plotfunction
+  end
+} bind define
 
 {
 
