@@ -32,9 +32,10 @@
 %        rings of fixed size, with their axes tangent to the curve.
 %
 %  For ease of use in simple cases, we've defined plotyofx and plotroftheta:
-%    f a b plotyofx -  plots y = f(x) for a<=x<=b, with axes and grid
-%    f plotroftheta -  plots r = f(theta) for 0<=theta<=360, with axes and grid
-%
+%  f a b plotyofx -  plots y = f(x) for a<=x<=b, with axes and grid
+%  f plotroftheta -  plots r = f(theta) for 0<=theta<=360, with axes and grid
+%  f b plotroftheta -  plots r = f(theta) for 0<=theta<=b, with axes and grid
+%  f a b plotroftheta -  plots r = f(theta) for a<=theta<=b, with axes and grid
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 /define {2 copy //def pop =print ( defined) = } bind readonly def
@@ -567,13 +568,19 @@ currentdict dup /FID undef end definefont pop
   end
 } bind define
 
-/plotroftheta {    % f plotroftheta -
-  % theta in degrees
+/isnumber {type dup 0 type eq exch 0. type eq or} bind def
+
+/plotroftheta {    % f a b plotroftheta -    % theta in degrees
+  % a and b are optional; if only one is present, it's b
+  % a defaults to 0, b defaults to 360
   20 dict begin
   /H10 /ISOHelvetica findfont 10 scalefont def
+  /a 0 def
+  /b 360 def
+  dup isnumber {/b exch store dup isnumber {/a exch store} if} if
   /f exch def
   /R 0 def
-  0 .25 359 {f abs R max /R exch store} for
+  a .25 b .125 add {f abs R max /R exch store} for
   0 R 2 mul todec /R exch 2 div def /dr exch def pop
   /MapAll {R div 256 mul /r exch def dup cos r mul 292 add exch sin r mul 292 add} def
   /View {} def
@@ -608,7 +615,7 @@ currentdict dup /FID undef end definefont pop
     >>
   ] def
   plotaxes
-  0 .25 360 /f load plotfunction
+  a .25 b .125 add /f load plotfunction
   end
 } bind define
 
