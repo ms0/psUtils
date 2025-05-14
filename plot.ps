@@ -513,7 +513,7 @@ currentdict dup /FID undef end definefont pop
 
 /plotyofx { % fcn minx maxx plotyofx -
   20 dict begin
-  /H10 /ISOHelvetica findfont 10 scalefont def
+  /H8 /ISOHelvetica findfont 8 scalefont def
   /maxx exch def
   /minx exch def
   /f exch def
@@ -539,7 +539,7 @@ currentdict dup /FID undef end definefont pop
 			  {aminx adx amaxx {pop xay} plotfunction} if} for
   grestore
   /Axes [
-    << /LabelFont H10
+    << /LabelFont H8
        /LabelOrientation 2
        /LabelReference [-1 -1]
        /LineWidth 0
@@ -550,7 +550,7 @@ currentdict dup /FID undef end definefont pop
        /TickLength [3 2 1]
        /Tick [2 5 1]
     >>
-    <</LabelFont H10
+    <</LabelFont H8
        /LabelOrientation 1
        /LabelReference [-1 -1]
        /LineWidth 0
@@ -574,7 +574,7 @@ currentdict dup /FID undef end definefont pop
   % a and b are optional; if only one is present, it's b
   % a defaults to 0, b defaults to 360
   20 dict begin
-  /H10 /ISOHelvetica findfont 10 scalefont def
+  /H8 /ISOHelvetica findfont 8 scalefont def
   /a 0 def
   /b 360 def
   dup isnumber {/b exch store dup isnumber {/a exch store} if} if
@@ -590,7 +590,7 @@ currentdict dup /FID undef end definefont pop
   15 15 345 {/t exch def 0 R R {pop t exch} plotfunction} for
   grestore
   /Axes [
-    << /LabelFont H10
+    << /LabelFont H8
        /LabelCurvature true
        /LabelOrientation 0
        /LabelReference [0 0]
@@ -602,7 +602,7 @@ currentdict dup /FID undef end definefont pop
        /TickLength [3 3 1]
        /Tick [3 5 1]
     >>
-    << /LabelFont H10
+    << /LabelFont H8
        /LabelOrientation 2
        /LabelReference [0 0]
        /LineWidth 0
